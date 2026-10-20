@@ -6,9 +6,22 @@ import type { SitrepEvent } from "@/lib/types";
 import { SEVERITY_LABEL } from "@/lib/types";
 import { CategoryBadge } from "@/components/ui/CategoryBadge";
 import { TimeAgo } from "@/components/ui/TimeAgo";
+import { findRelatedEvents } from "@/lib/relatedEvents";
 import { cn } from "@/lib/cn";
 
-function Content({ event }: { event: SitrepEvent }) {
+function Content({
+  event,
+  allEvents,
+  onSelectRelated,
+  onFilterCountry,
+}: {
+  event: SitrepEvent;
+  allEvents: SitrepEvent[];
+  onSelectRelated: (id: string) => void;
+  onFilterCountry: (country: string) => void;
+}) {
+  const related = findRelatedEvents(event, allEvents);
+
   return (
     <>
       <div className="flex items-start justify-between gap-3 border-b border-border px-4 py-3">
@@ -39,7 +52,15 @@ function Content({ event }: { event: SitrepEvent }) {
           <div className="col-span-2 flex items-center gap-1.5">
             <MapPin className="size-3.5 text-ink-faint" aria-hidden />
             <dd className="text-ink">
-              {event.country} · {event.continent}
+              <button
+                type="button"
+                onClick={() => onFilterCountry(event.country)}
+                className="underline decoration-dotted underline-offset-2 hover:text-accent"
+                title={`Filter the dashboard to ${event.country}`}
+              >
+                {event.country}
+              </button>{" "}
+              · {event.continent}
             </dd>
           </div>
         </dl>
@@ -68,11 +89,43 @@ function Content({ event }: { event: SitrepEvent }) {
           {event.source}
         </a>
 
+        <div>
+          <p className="mb-2 font-mono text-[10px] tracking-wide text-ink-faint uppercase">
+            Related context (last 7 days)
+          </p>
+          {related.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-border p-3 font-mono text-[10px] text-ink-faint">
+              No related items found in the current 7-day window yet.
+            </p>
+          ) : (
+            <div className="space-y-1.5">
+              {related.map((r) => (
+                <button
+                  key={r.id}
+                  type="button"
+                  onClick={() => onSelectRelated(r.id)}
+                  className="block w-full rounded-lg border border-border p-2 text-left transition-colors hover:border-border-strong hover:bg-surface-2"
+                >
+                  <span className="flex items-center justify-between gap-2">
+                    <CategoryBadge category={r.category} className="shrink-0" />
+                    <span className="truncate font-mono text-[10px] text-ink-faint">
+                      {r.country}
+                    </span>
+                  </span>
+                  <span className="mt-1 block text-xs leading-snug text-ink">
+                    {r.title}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         <div className="rounded-lg border border-dashed border-border p-3">
           <p className="font-mono text-[10px] text-ink-faint">
-            &quot;Explain this event&quot;, similar context, and UPSC notes
-            open here once Stalin (Phase 6) and the 7-day archive (Phase 4)
-            are wired up.
+            &quot;Explain this event&quot;, UPSC notes, and a full AI-written
+            situation report open here once Stalin (Phase 6) and the
+            continent agents (Phase 5) are wired up.
           </p>
         </div>
       </div>
@@ -82,11 +135,17 @@ function Content({ event }: { event: SitrepEvent }) {
 
 export function EventDetailPanel({
   event,
+  allEvents,
   onClose,
+  onSelectRelated,
+  onFilterCountry,
   variant,
 }: {
   event: SitrepEvent;
+  allEvents: SitrepEvent[];
   onClose: () => void;
+  onSelectRelated: (id: string) => void;
+  onFilterCountry: (country: string) => void;
   variant: "panel" | "sheet";
 }) {
   if (variant === "sheet") {
@@ -116,7 +175,12 @@ export function EventDetailPanel({
           >
             <X className="size-4" aria-hidden />
           </button>
-          <Content event={event} />
+          <Content
+            event={event}
+            allEvents={allEvents}
+            onSelectRelated={onSelectRelated}
+            onFilterCountry={onFilterCountry}
+          />
         </motion.div>
       </div>
     );
@@ -139,7 +203,12 @@ export function EventDetailPanel({
           ← Back to feed
         </button>
       </div>
-      <Content event={event} />
+      <Content
+        event={event}
+        allEvents={allEvents}
+        onSelectRelated={onSelectRelated}
+        onFilterCountry={onFilterCountry}
+      />
     </motion.div>
   );
 }

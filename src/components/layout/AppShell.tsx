@@ -3,9 +3,17 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { AnimatePresence, MotionConfig } from "framer-motion";
 import { Bot, GraduationCap, Users } from "lucide-react";
-import { CATEGORY_LABEL, type EventCategory, type NavTab } from "@/lib/types";
+import {
+  CATEGORY_LABEL,
+  TIME_WINDOW_MS,
+  type EventCategory,
+  type NavTab,
+  type Severity,
+  type TimeWindow,
+} from "@/lib/types";
 import { useEvents } from "@/lib/useEvents";
 import { useIsDesktop } from "@/lib/useIsDesktop";
+import { useNow } from "@/lib/useNow";
 import { TopBar } from "@/components/layout/TopBar";
 import { DesktopNav } from "@/components/layout/DesktopNav";
 import { BottomNav } from "@/components/layout/BottomNav";
@@ -17,15 +25,20 @@ import { ComingSoonPanel } from "@/components/panels/ComingSoonPanel";
 import { StalinLauncher } from "@/components/assistant/StalinLauncher";
 
 const ALL_CATEGORIES = Object.keys(CATEGORY_LABEL) as EventCategory[];
+const SEVERITY_ORDER_LIST: Severity[] = ["low", "medium", "high", "critical"];
 
 export function AppShell() {
   const isDesktop = useIsDesktop();
+  const now = useNow();
   const { events, loading, error, dataSource, refresh } = useEvents();
   const [activeTab, setActiveTab] = useState<NavTab>("map");
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [activeCategories, setActiveCategories] = useState<Set<EventCategory>>(
     () => new Set(ALL_CATEGORIES),
   );
+  const [timeWindow, setTimeWindow] = useState<TimeWindow>("7d");
+  const [minSeverity, setMinSeverity] = useState<Severity>("low");
+  const [countryFilter, setCountryFilter] = useState<string | null>(null);
 
   const toggleCategory = (category: EventCategory) => {
     setActiveCategories((prev) => {
@@ -36,10 +49,27 @@ export function AppShell() {
     });
   };
 
-  const filteredEvents = useMemo(
-    () => events.filter((e) => activeCategories.has(e.category)),
-    [events, activeCategories],
+  const minSeverityRank = SEVERITY_ORDER_LIST.indexOf(minSeverity);
+
+  // Shared by both filtered sets below — category/severity/country are
+  // "always on" filters; only the time window differs between the live
+  // feed/globe and the Timeline view (which always spans the full 7 days).
+  const passesBaseFilters = (e: (typeof events)[number]) =>
+    activeCategories.has(e.category) &&
+    SEVERITY_ORDER_LIST.indexOf(e.severity) >= minSeverityRank &&
+    (countryFilter ? e.country === countryFilter : true);
+
+  const timelineEvents = useMemo(
+    () => events.filter(passesBaseFilters),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- passesBaseFilters is a plain closure over the deps below, not itself a dep
+    [events, activeCategories, minSeverityRank, countryFilter],
   );
+
+  const filteredEvents = useMemo(() => {
+    if (now === null) return []; // matches the server/first-paint render — time-window filtering only applies once mounted
+    const cutoff = now - TIME_WINDOW_MS[timeWindow];
+    return timelineEvents.filter((e) => new Date(e.publishedAt).getTime() >= cutoff);
+  }, [timelineEvents, timeWindow, now]);
 
   const selectedEvent = useMemo(
     () => events.find((e) => e.id === selectedEventId) ?? null,
@@ -65,6 +95,8 @@ export function AppShell() {
   const feed = (
     <FeedPanel
       events={filteredEvents}
+      timelineEvents={timelineEvents}
+      now={now}
       selectedEventId={selectedEventId}
       onSelect={setSelectedEventId}
       loading={loading && events.length === 0}
@@ -127,7 +159,13 @@ export function AppShell() {
           <aside className="hidden w-64 shrink-0 overflow-hidden border-r border-border md:block">
             <FilterPanel
               activeCategories={activeCategories}
-              onToggle={toggleCategory}
+              onToggleCategory={toggleCategory}
+              timeWindow={timeWindow}
+              onChangeTimeWindow={setTimeWindow}
+              minSeverity={minSeverity}
+              onChangeMinSeverity={setMinSeverity}
+              countryFilter={countryFilter}
+              onClearCountryFilter={() => setCountryFilter(null)}
             />
           </aside>
 
@@ -141,8 +179,11 @@ export function AppShell() {
                 <EventDetailPanel
                   key="detail"
                   event={selectedEvent}
+                  allEvents={events}
                   variant="panel"
                   onClose={closeDetail}
+                  onSelectRelated={setSelectedEventId}
+                  onFilterCountry={setCountryFilter}
                 />
               ) : (
                 <div key={activeTab} className="h-full">
@@ -160,8 +201,11 @@ export function AppShell() {
             <EventDetailPanel
               key="sheet"
               event={selectedEvent}
+              allEvents={events}
               variant="sheet"
               onClose={closeDetail}
+              onSelectRelated={setSelectedEventId}
+              onFilterCountry={setCountryFilter}
             />
           )}
         </AnimatePresence>

@@ -78,6 +78,22 @@ export const SEVERITY_ORDER: Record<Severity, number> = {
   critical: 3,
 };
 
+export type TimeWindow = "1h" | "24h" | "3d" | "7d";
+
+export const TIME_WINDOW_MS: Record<TimeWindow, number> = {
+  "1h": 60 * 60 * 1000,
+  "24h": 24 * 60 * 60 * 1000,
+  "3d": 3 * 24 * 60 * 60 * 1000,
+  "7d": 7 * 24 * 60 * 60 * 1000,
+};
+
+export const TIME_WINDOW_LABEL: Record<TimeWindow, string> = {
+  "1h": "1h",
+  "24h": "24h",
+  "3d": "3d",
+  "7d": "7d",
+};
+
 export type NavTab = "map" | "feed" | "agents" | "upsc" | "stalin";
 
 export const NAV_TABS: { id: NavTab; label: string }[] = [
