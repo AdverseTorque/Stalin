@@ -11,9 +11,11 @@ name/branding of, or claim affiliation with any real intelligence agency.
 
 ## Status
 
-Phases 1–5 complete: live deploy, responsive UI shell, real data ingestion
-(GDELT + Guardian/GNews/NewsData.io + RSS), functional filters/timeline/
-similar-context, and 8 regional AI agents + an MCP endpoint. See
+Phases 1–6 complete: live deploy, responsive UI shell, political-map globe
+(official Indian boundaries), real data ingestion (GDELT +
+Guardian/GNews/NewsData.io + RSS), functional filters/timeline/
+similar-context, 8 regional AI agents + an MCP endpoint, and the Stalin
+assistant (streaming, retrieval over the 7-day database, cited answers). See
 [PLAN.md](./PLAN.md) for the full architecture, data sources, database
 schema, and phased build plan, and [PROMPT.md](./PROMPT.md) for the original
 project brief.

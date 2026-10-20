@@ -49,6 +49,39 @@ export async function searchEvents(params: SearchEventsParams): Promise<ItemRow[
     .limit(Math.min(params.limit ?? 25, 100));
 }
 
+/**
+ * Any-keyword match over title/summary in the 7-day window, ranked by how
+ * many distinct keywords each item hits (then recency). For free-text
+ * questions — searchEvents' single `query` string would never match a
+ * whole natural-language question.
+ */
+export async function searchByKeywords(keywords: string[], limit = 10): Promise<ItemRow[]> {
+  if (keywords.length === 0) return [];
+  const db = getDb();
+  const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const rows = await db
+    .select()
+    .from(items)
+    .where(
+      and(
+        gte(items.publishedAt, cutoff),
+        or(...keywords.flatMap((k) => [ilike(items.title, `%${k}%`), ilike(items.summary, `%${k}%`)])),
+      ),
+    )
+    .orderBy(desc(items.publishedAt))
+    .limit(200);
+
+  const score = (row: ItemRow) => {
+    const text = `${row.title} ${row.summary}`.toLowerCase();
+    return keywords.filter((k) => text.includes(k)).length;
+  };
+  return rows
+    .map((row) => ({ row, s: score(row) }))
+    .sort((a, b) => b.s - a.s || b.row.publishedAt.getTime() - a.row.publishedAt.getTime())
+    .slice(0, limit)
+    .map((x) => x.row);
+}
+
 export async function getCountryTimeline(country: string, days = 7): Promise<ItemRow[]> {
   const db = getDb();
   const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);

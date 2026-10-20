@@ -52,8 +52,19 @@ updates.
 ## Phase 5 — continent agents + MCP endpoint
 
 1. Got a free `GROQ_API_KEY` from console.groq.com, added it to `.env.local`.
-2. Add the same key as a **GitHub Actions secret** only (repo **Settings → Secrets and variables → Actions → New repository secret**, name `GROQ_API_KEY`) — the agents run on a schedule via GitHub Actions and write their reports to the database; Vercel itself never calls Groq directly, so it does **not** need this secret.
-3. No Vercel changes needed for this phase.
+2. Add the same key as a **GitHub Actions secret** (repo **Settings → Secrets and variables → Actions → New repository secret**, name `GROQ_API_KEY`) — the agents run on a schedule via GitHub Actions and write their reports to the database.
+3. (As of Phase 6, Vercel needs this key too — see below.)
+
+## Phase 6 — Stalin assistant
+
+Stalin answers live in the browser, so unlike the agents, the **Vercel
+deployment itself now calls Groq** and needs the key too:
+
+1. Vercel → your project → **Settings → Environment Variables → Add**.
+2. Name `GROQ_API_KEY`, value = the same key from `.env.local`, environments: all.
+3. **Save**, then **Deployments → latest → ⋯ → Redeploy** (env var changes only apply to new deployments).
+
+Without it, the dashboard still works; Stalin just replies that it isn't configured.
 
 ## Later phases
 

@@ -2,7 +2,7 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import { AnimatePresence, MotionConfig } from "framer-motion";
-import { Bot, GraduationCap } from "lucide-react";
+import { GraduationCap } from "lucide-react";
 import {
   CATEGORY_LABEL,
   TIME_WINDOW_MS,
@@ -24,6 +24,9 @@ import { EventDetailPanel } from "@/components/panels/EventDetailPanel";
 import { AgentsPanel } from "@/components/panels/AgentsPanel";
 import { ComingSoonPanel } from "@/components/panels/ComingSoonPanel";
 import { StalinLauncher } from "@/components/assistant/StalinLauncher";
+import { StalinChat } from "@/components/assistant/StalinChat";
+import { STALIN_ACTIONS, type StalinAction } from "@/lib/stalin/actions";
+import { useStalinChat } from "@/lib/stalin/useStalinChat";
 
 const ALL_CATEGORIES = Object.keys(CATEGORY_LABEL) as EventCategory[];
 const SEVERITY_ORDER_LIST: Severity[] = ["low", "medium", "high", "critical"];
@@ -40,6 +43,8 @@ export function AppShell() {
   const [timeWindow, setTimeWindow] = useState<TimeWindow>("7d");
   const [minSeverity, setMinSeverity] = useState<Severity>("low");
   const [countryFilter, setCountryFilter] = useState<string | null>(null);
+  const [stalinOpen, setStalinOpen] = useState(false);
+  const stalin = useStalinChat();
 
   const toggleCategory = (category: EventCategory) => {
     setActiveCategories((prev) => {
@@ -84,6 +89,18 @@ export function AppShell() {
     setSelectedEventId(null);
   };
 
+  // "Ask Stalin" from the event detail panel: send the action with the open
+  // event as context, then bring the chat into view — the floating panel on
+  // desktop (detail panel stays visible), the Stalin tab on mobile (the
+  // bottom sheet would otherwise cover the answer).
+  const askStalin = (action: StalinAction) => {
+    const def = STALIN_ACTIONS.find((a) => a.id === action);
+    if (!def) return;
+    stalin.send(def.prompt, { contextEventId: selectedEventId, action });
+    if (isDesktop) setStalinOpen(true);
+    else changeTab("stalin");
+  };
+
   const globe = (
     <GlobeView
       events={filteredEvents}
@@ -110,24 +127,16 @@ export function AppShell() {
 
   const agentsPanel = <AgentsPanel />;
 
-  const comingSoon: Record<"upsc" | "stalin", ReactNode> = {
-    upsc: (
-      <ComingSoonPanel
-        icon={GraduationCap}
-        label="UPSC Mode"
-        title="Syllabus tagging arrives in Phase 7"
-        description="Every item will be tagged with GS-1 to GS-4 / Prelims relevance, with a daily auto-generated UPSC Digest and exportable notes."
-      />
-    ),
-    stalin: (
-      <ComingSoonPanel
-        icon={Bot}
-        label="Stalin"
-        title="Full assistant arrives in Phase 6"
-        description="Use the floating Stalin button on desktop for a preview of the chat shell, or the Stalin tab here on mobile."
-      />
-    ),
-  };
+  const stalinPanel = <StalinChat chat={stalin} contextEvent={selectedEvent} />;
+
+  const upscPanel: ReactNode = (
+    <ComingSoonPanel
+      icon={GraduationCap}
+      label="UPSC Mode"
+      title="Syllabus tagging arrives in Phase 7"
+      description="Every item will be tagged with GS-1 to GS-4 / Prelims relevance, with a daily auto-generated UPSC Digest and exportable notes."
+    />
+  );
 
   // Center stage: the globe must only ever be mounted once (a second WebGL
   // context on mobile would be wasted GPU/memory), so which single tree gets
@@ -141,14 +150,22 @@ export function AppShell() {
         ? feed
         : activeTab === "agents"
           ? agentsPanel
-          : comingSoon[activeTab];
+          : activeTab === "stalin"
+            ? stalinPanel
+            : upscPanel;
 
   const rightPanelContent =
     activeTab === "agents"
       ? agentsPanel
-      : activeTab === "upsc" || activeTab === "stalin"
-        ? comingSoon[activeTab]
-        : feed;
+      : activeTab === "stalin"
+        ? stalinPanel
+        : activeTab === "upsc"
+          ? upscPanel
+          : feed;
+
+  // On desktop the Stalin tab already shows the chat in the right panel;
+  // hide the floating launcher then so the same chat isn't shown twice.
+  const stalinTabVisible = activeTab === "stalin" && !selectedEvent;
 
   return (
     <MotionConfig reducedMotion="user">
@@ -185,6 +202,7 @@ export function AppShell() {
                   onClose={closeDetail}
                   onSelectRelated={setSelectedEventId}
                   onFilterCountry={setCountryFilter}
+                  onAskStalin={askStalin}
                 />
               ) : (
                 <div key={activeTab} className="h-full">
@@ -207,11 +225,19 @@ export function AppShell() {
               onClose={closeDetail}
               onSelectRelated={setSelectedEventId}
               onFilterCountry={setCountryFilter}
+              onAskStalin={askStalin}
             />
           )}
         </AnimatePresence>
 
-        <StalinLauncher />
+        {!stalinTabVisible && (
+          <StalinLauncher
+            open={stalinOpen}
+            onOpenChange={setStalinOpen}
+            chat={stalin}
+            contextEvent={selectedEvent}
+          />
+        )}
       </div>
     </MotionConfig>
   );

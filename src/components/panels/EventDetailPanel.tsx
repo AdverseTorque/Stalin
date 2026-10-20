@@ -1,9 +1,10 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { ExternalLink, MapPin, Tag, X } from "lucide-react";
+import { Bot, ExternalLink, MapPin, Tag, X } from "lucide-react";
 import type { SitrepEvent } from "@/lib/types";
 import { SEVERITY_LABEL } from "@/lib/types";
+import { STALIN_ACTIONS, type StalinAction } from "@/lib/stalin/actions";
 import { CategoryBadge } from "@/components/ui/CategoryBadge";
 import { TimeAgo } from "@/components/ui/TimeAgo";
 import { findRelatedEvents } from "@/lib/relatedEvents";
@@ -14,11 +15,13 @@ function Content({
   allEvents,
   onSelectRelated,
   onFilterCountry,
+  onAskStalin,
 }: {
   event: SitrepEvent;
   allEvents: SitrepEvent[];
   onSelectRelated: (id: string) => void;
   onFilterCountry: (country: string) => void;
+  onAskStalin: (action: StalinAction) => void;
 }) {
   const related = findRelatedEvents(event, allEvents);
 
@@ -121,12 +124,23 @@ function Content({
           )}
         </div>
 
-        <div className="rounded-lg border border-dashed border-border p-3">
-          <p className="font-mono text-[10px] text-ink-faint">
-            &quot;Explain this event&quot;, UPSC notes, and a full AI-written
-            situation report open here once Stalin (Phase 6) and the
-            continent agents (Phase 5) are wired up.
+        <div>
+          <p className="mb-2 flex items-center gap-1.5 font-mono text-[10px] tracking-wide text-ink-faint uppercase">
+            <Bot className="size-3.5 text-accent" aria-hidden />
+            Ask Stalin
           </p>
+          <div className="flex flex-wrap gap-1.5">
+            {STALIN_ACTIONS.filter((a) => a.needsEvent).map((a) => (
+              <button
+                key={a.id}
+                type="button"
+                onClick={() => onAskStalin(a.id)}
+                className="rounded-full border border-border px-2.5 py-1 font-mono text-[10px] text-ink-muted transition-colors hover:border-accent/40 hover:text-accent"
+              >
+                {a.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </>
@@ -139,6 +153,7 @@ export function EventDetailPanel({
   onClose,
   onSelectRelated,
   onFilterCountry,
+  onAskStalin,
   variant,
 }: {
   event: SitrepEvent;
@@ -146,6 +161,7 @@ export function EventDetailPanel({
   onClose: () => void;
   onSelectRelated: (id: string) => void;
   onFilterCountry: (country: string) => void;
+  onAskStalin: (action: StalinAction) => void;
   variant: "panel" | "sheet";
 }) {
   if (variant === "sheet") {
@@ -180,6 +196,7 @@ export function EventDetailPanel({
             allEvents={allEvents}
             onSelectRelated={onSelectRelated}
             onFilterCountry={onFilterCountry}
+            onAskStalin={onAskStalin}
           />
         </motion.div>
       </div>
@@ -208,6 +225,7 @@ export function EventDetailPanel({
         allEvents={allEvents}
         onSelectRelated={onSelectRelated}
         onFilterCountry={onFilterCountry}
+        onAskStalin={onAskStalin}
       />
     </motion.div>
   );
