@@ -37,6 +37,10 @@ yarn-error.log*
 # vercel
 .vercel
 
+# telegram session files (never commit — see PLAN.md Telegram section)
+*.session
+*.session-journal
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
