@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { SlidersHorizontal, X } from "lucide-react";
 import {
   CATEGORY_COLOR_VAR,
@@ -16,7 +17,7 @@ const ALL_CATEGORIES = Object.keys(CATEGORY_LABEL) as EventCategory[];
 const TIME_WINDOWS = Object.keys(TIME_WINDOW_LABEL) as TimeWindow[];
 const SEVERITY_THRESHOLDS: Severity[] = ["low", "medium", "high", "critical"];
 
-export function FilterPanel({
+function FilterPanelImpl({
   activeCategories,
   onToggleCategory,
   timeWindow,
@@ -140,3 +141,7 @@ export function FilterPanel({
     </div>
   );
 }
+
+// memo: AppShell re-renders on every streamed Stalin token; this panel only
+// needs to re-render when its own props change.
+export const FilterPanel = memo(FilterPanelImpl);

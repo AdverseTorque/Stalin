@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import { History, Radio, Rss, Search } from "lucide-react";
 import type { SitrepEvent } from "@/lib/types";
 import { EventCard } from "@/components/feed/EventCard";
@@ -12,7 +12,7 @@ import { cn } from "@/lib/cn";
 
 type ViewMode = "feed" | "timeline";
 
-export function FeedPanel({
+function FeedPanelImpl({
   events,
   timelineEvents,
   now,
@@ -137,3 +137,7 @@ export function FeedPanel({
     </div>
   );
 }
+
+// memo: AppShell re-renders on every streamed Stalin token; this panel only
+// needs to re-render when its own props change.
+export const FeedPanel = memo(FeedPanelImpl);

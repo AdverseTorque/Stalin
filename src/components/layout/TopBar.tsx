@@ -1,8 +1,9 @@
+import { memo } from "react";
 import type { SitrepEvent } from "@/lib/types";
 import { Ticker } from "@/components/layout/Ticker";
 import { cn } from "@/lib/cn";
 
-export function TopBar({
+function TopBarImpl({
   events,
   dataSource,
 }: {
@@ -51,3 +52,7 @@ export function TopBar({
     </header>
   );
 }
+
+// memo: AppShell re-renders on every streamed Stalin token; this panel only
+// needs to re-render when its own props change.
+export const TopBar = memo(TopBarImpl);

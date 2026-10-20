@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import type { GlobeMethods } from "react-globe.gl";
 import * as THREE from "three";
@@ -26,11 +26,10 @@ const BORDER_FILTERED = "#7dd3fc";
 const HOVER_TINT = "#38bdf8";
 
 // Altitudes are layered so markers/rings always sit above any country
-// shape, even a raised (hovered) one — otherwise a hovered country would
-// swallow low-severity markers on it.
+// shape. Hover deliberately does NOT change altitude (see PERFORMANCE note
+// in GlobeView) — it only tints the colour.
 const ALT_BASE = 0.005;
 const ALT_ACTIVE = 0.009;
-const ALT_HOVER = 0.016;
 const ALT_RINGS = 0.018;
 const ALT_POINT_MIN = 0.022;
 
@@ -58,7 +57,22 @@ function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 }
 
-export function GlobeView({
+// Accessors that depend on nothing but the datum itself — defined once at
+// module level so their identity never changes (see the PERFORMANCE note
+// inside GlobeView).
+const asEvent = (d: object) => d as SitrepEvent;
+const polygonSide = () => "rgba(8, 14, 30, 0.75)";
+const eventLat = (d: object) => asEvent(d).lat;
+const eventLng = (d: object) => asEvent(d).lng;
+const pointColor = (d: object) => CATEGORY_HEX[asEvent(d).category];
+const pointAltitude = (d: object) => ALT_POINT_MIN + SEVERITY_WEIGHT[asEvent(d).severity] * 0.03;
+const pointRadius = (d: object) => 0.35 + SEVERITY_WEIGHT[asEvent(d).severity] * 0.55;
+const pointLabel = (d: object) => escapeHtml(asEvent(d).title);
+const ringColor = () => CATEGORY_HEX.conflict;
+
+// memo: AppShell re-renders on every streamed Stalin token; without this
+// the whole globe re-rendered hundreds of times per answer.
+export const GlobeView = memo(function GlobeView({
   events,
   selectedEventId,
   onSelectEvent,
@@ -81,12 +95,13 @@ export function GlobeView({
   const [webglOk, setWebglOk] = useState<boolean | null>(null);
   const [hovered, setHovered] = useState<CountryFeature | null>(null);
   const countries = useCountryShapes();
+  const setHoveredFeature = useCallback(
+    (d: object | null) => setHovered((d as CountryFeature | null) ?? null),
+    [],
+  );
 
   useEffect(() => {
-    // One-time browser-capability probe on mount, not state synchronized
-    // from a changing external source — the lint rule's cascading-render
-    // concern doesn't apply here.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    // One-time browser-capability probe on mount.
     setWebglOk(isWebGLAvailable());
   }, []);
 
@@ -114,25 +129,55 @@ export function GlobeView({
     return counts;
   }, [events]);
 
-  const countryColor = (f: CountryFeature) => {
-    const base = MAP_PALETTE[(f.properties.mapColor - 1 + MAP_PALETTE.length) % MAP_PALETTE.length];
-    if (f === hovered) return mix(base, HOVER_TINT, 0.45);
-    const active = eventCountByCountry.has(resolveCountryName(f));
-    return active ? mix(base, "#ffffff", 0.2) : base;
-  };
+  // PERFORMANCE: react-globe.gl compares accessor props by reference — a
+  // new function on every render makes it re-process every country shape.
+  // So each accessor below is memoised on exactly the data it reads, and
+  // hover changes only the cap COLOUR (a cheap material update) — changing
+  // a polygon's ALTITUDE rebuilds the 3D geometry of every country, which
+  // made hovering visibly laggy.
+  const nameOf = useMemo(() => {
+    const names = new Map<CountryFeature, string>();
+    for (const f of countries) names.set(f, resolveCountryName(f));
+    return (f: CountryFeature) => names.get(f) ?? resolveCountryName(f);
+  }, [countries]);
 
-  const countryAltitude = (f: CountryFeature) => {
-    if (f === hovered) return ALT_HOVER;
-    return eventCountByCountry.has(resolveCountryName(f)) ? ALT_ACTIVE : ALT_BASE;
-  };
+  const countryColor = useCallback(
+    (d: object) => {
+      const f = d as CountryFeature;
+      const base = MAP_PALETTE[(f.properties.mapColor - 1 + MAP_PALETTE.length) % MAP_PALETTE.length];
+      if (f === hovered) return mix(base, HOVER_TINT, 0.45);
+      return eventCountByCountry.has(nameOf(f)) ? mix(base, "#ffffff", 0.2) : base;
+    },
+    [hovered, eventCountByCountry, nameOf],
+  );
 
-  const countryLabel = (f: CountryFeature) => {
-    const name = resolveCountryName(f);
-    const count = eventCountByCountry.get(name) ?? 0;
-    return `<div style="padding:4px 8px;border-radius:6px;background:rgba(10,16,34,0.9);border:1px solid rgba(148,163,184,0.3);font:12px ui-monospace,monospace;color:#e7ecf6">
+  const countryAltitude = useCallback(
+    (d: object) => (eventCountByCountry.has(nameOf(d as CountryFeature)) ? ALT_ACTIVE : ALT_BASE),
+    [eventCountByCountry, nameOf],
+  );
+
+  const countryStroke = useCallback(
+    (d: object) => (countryFilter && nameOf(d as CountryFeature) === countryFilter ? BORDER_FILTERED : BORDER),
+    [countryFilter, nameOf],
+  );
+
+  const countryClick = useCallback(
+    (d: object) => onSelectCountry(nameOf(d as CountryFeature)),
+    [onSelectCountry, nameOf],
+  );
+
+  const pointClick = useCallback((d: object) => onSelectEvent((d as SitrepEvent).id), [onSelectEvent]);
+
+  const countryLabel = useCallback(
+    (d: object) => {
+      const name = nameOf(d as CountryFeature);
+      const count = eventCountByCountry.get(name) ?? 0;
+      return `<div style="padding:4px 8px;border-radius:6px;background:rgba(10,16,34,0.9);border:1px solid rgba(148,163,184,0.3);font:12px ui-monospace,monospace;color:#e7ecf6">
       ${escapeHtml(name)}<span style="color:#9aa8c4"> · ${count} event${count === 1 ? "" : "s"}</span>
     </div>`;
-  };
+    },
+    [eventCountByCountry, nameOf],
+  );
 
   const handleGlobeReady = () => {
     const controls = globeRef.current?.controls();
@@ -221,29 +266,27 @@ export function GlobeView({
           atmosphereAltitude={0.2}
           onGlobeReady={handleGlobeReady}
           polygonsData={countries}
-          polygonCapColor={(d) => countryColor(d as CountryFeature)}
-          polygonSideColor={() => "rgba(8, 14, 30, 0.75)"}
-          polygonStrokeColor={(d) =>
-            countryFilter && resolveCountryName(d as CountryFeature) === countryFilter ? BORDER_FILTERED : BORDER
-          }
-          polygonAltitude={(d) => countryAltitude(d as CountryFeature)}
-          polygonsTransitionDuration={250}
-          polygonLabel={(d) => countryLabel(d as CountryFeature)}
-          onPolygonHover={(d) => setHovered((d as CountryFeature | null) ?? null)}
-          onPolygonClick={(d) => onSelectCountry(resolveCountryName(d as CountryFeature))}
+          polygonCapColor={countryColor}
+          polygonSideColor={polygonSide}
+          polygonStrokeColor={countryStroke}
+          polygonAltitude={countryAltitude}
+          polygonsTransitionDuration={0}
+          polygonLabel={countryLabel}
+          onPolygonHover={setHoveredFeature}
+          onPolygonClick={countryClick}
           pointsData={events}
-          pointLat={(d) => (d as SitrepEvent).lat}
-          pointLng={(d) => (d as SitrepEvent).lng}
-          pointColor={(d) => CATEGORY_HEX[(d as SitrepEvent).category]}
-          pointAltitude={(d) => ALT_POINT_MIN + SEVERITY_WEIGHT[(d as SitrepEvent).severity] * 0.03}
-          pointRadius={(d) => 0.35 + SEVERITY_WEIGHT[(d as SitrepEvent).severity] * 0.55}
-          pointLabel={(d) => escapeHtml((d as SitrepEvent).title)}
-          onPointClick={(d) => onSelectEvent((d as SitrepEvent).id)}
+          pointLat={eventLat}
+          pointLng={eventLng}
+          pointColor={pointColor}
+          pointAltitude={pointAltitude}
+          pointRadius={pointRadius}
+          pointLabel={pointLabel}
+          onPointClick={pointClick}
           ringsData={criticalRings}
-          ringLat={(d) => (d as SitrepEvent).lat}
-          ringLng={(d) => (d as SitrepEvent).lng}
+          ringLat={eventLat}
+          ringLng={eventLng}
           ringAltitude={ALT_RINGS}
-          ringColor={() => CATEGORY_HEX.conflict}
+          ringColor={ringColor}
           ringMaxRadius={3}
           ringPropagationSpeed={2}
           ringRepeatPeriod={1400}
@@ -270,4 +313,4 @@ export function GlobeView({
       )}
     </div>
   );
-}
+});

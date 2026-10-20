@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { AnimatePresence, MotionConfig } from "framer-motion";
 import { GraduationCap } from "lucide-react";
 import {
@@ -46,14 +46,15 @@ export function AppShell() {
   const [stalinOpen, setStalinOpen] = useState(false);
   const stalin = useStalinChat();
 
-  const toggleCategory = (category: EventCategory) => {
+  const toggleCategory = useCallback((category: EventCategory) => {
     setActiveCategories((prev) => {
       const next = new Set(prev);
       if (next.has(category)) next.delete(category);
       else next.add(category);
       return next;
     });
-  };
+  }, []);
+  const clearCountryFilter = useCallback(() => setCountryFilter(null), []);
 
   const minSeverityRank = SEVERITY_ORDER_LIST.indexOf(minSeverity);
 
@@ -84,6 +85,13 @@ export function AppShell() {
 
   const closeDetail = () => setSelectedEventId(null);
 
+  // Stable identity matters: GlobeView is memo'd, so an inline arrow here
+  // would defeat that and re-render the globe on every AppShell render.
+  const toggleCountryFilter = useCallback(
+    (country: string) => setCountryFilter((prev) => (prev === country ? null : country)),
+    [],
+  );
+
   const changeTab = (tab: NavTab) => {
     setActiveTab(tab);
     setSelectedEventId(null);
@@ -107,7 +115,7 @@ export function AppShell() {
       selectedEventId={selectedEventId}
       onSelectEvent={setSelectedEventId}
       countryFilter={countryFilter}
-      onSelectCountry={(country) => setCountryFilter((prev) => (prev === country ? null : country))}
+      onSelectCountry={toggleCountryFilter}
       loading={loading}
     />
   );
@@ -183,7 +191,7 @@ export function AppShell() {
               minSeverity={minSeverity}
               onChangeMinSeverity={setMinSeverity}
               countryFilter={countryFilter}
-              onClearCountryFilter={() => setCountryFilter(null)}
+              onClearCountryFilter={clearCountryFilter}
             />
           </aside>
 

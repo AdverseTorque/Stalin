@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { Users } from "lucide-react";
 import { AGENT_REGION_LABEL } from "@/lib/agents/regions";
 import { useAgentReports } from "@/lib/useAgentReports";
@@ -10,7 +11,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { FeedCardSkeleton } from "@/components/ui/Skeleton";
 
-export function AgentsPanel() {
+function AgentsPanelImpl() {
   const { reports, loading, error } = useAgentReports();
   const withReports = reports.filter((r) => r.summaryMd);
 
@@ -80,3 +81,7 @@ export function AgentsPanel() {
     </div>
   );
 }
+
+// memo: AppShell re-renders on every streamed Stalin token; this panel only
+// needs to re-render when its own props change.
+export const AgentsPanel = memo(AgentsPanelImpl);

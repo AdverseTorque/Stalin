@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback } from "react";
 import useSWR from "swr";
 import type { SitrepEvent } from "@/lib/types";
 
@@ -15,6 +16,10 @@ const fetcher = async (url: string): Promise<EventsResponse> => {
   return res.json();
 };
 
+// Stable empty array — `?? []` inline would be a new array every render,
+// which breaks memoisation in everything downstream (globe, feed).
+const NO_EVENTS: SitrepEvent[] = [];
+
 export function useEvents() {
   const { data, error, isLoading, mutate } = useSWR<EventsResponse>(
     "/api/events",
@@ -27,11 +32,15 @@ export function useEvents() {
     },
   );
 
+  const refresh = useCallback(() => {
+    void mutate();
+  }, [mutate]);
+
   return {
-    events: data?.events ?? [],
+    events: data?.events ?? NO_EVENTS,
     dataSource: data?.source ?? null,
     loading: isLoading,
     error: error ? (error as Error).message : null,
-    refresh: () => mutate(),
+    refresh,
   };
 }
