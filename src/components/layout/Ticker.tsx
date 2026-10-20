@@ -13,7 +13,7 @@ export function Ticker({ events }: { events: SitrepEvent[] }) {
 
   return (
     <div className="group relative flex h-8 items-center overflow-hidden border-b border-border bg-surface">
-      <span className="z-10 flex h-full shrink-0 items-center gap-1.5 bg-red-500/15 px-3 font-mono text-[10px] font-semibold tracking-widest text-red-300 uppercase">
+      <span className="relative z-10 flex h-full shrink-0 items-center gap-1.5 border-r border-border bg-surface px-3 font-mono text-[10px] font-semibold tracking-widest text-red-300 uppercase shadow-[4px_0_8px_-2px_rgba(0,0,0,0.4)]">
         <span className="size-1.5 animate-pulse rounded-full bg-red-400" aria-hidden />
         News Flash
       </span>

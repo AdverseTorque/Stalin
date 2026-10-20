@@ -33,3 +33,17 @@ export function detectCountry(text: string): CountryInfo | null {
   }
   return null;
 }
+
+const BY_FIPS: Record<string, CountryInfo> = Object.fromEntries(
+  COUNTRIES.map((c) => [c.fips, c]),
+);
+
+/**
+ * Resolves GDELT's ActionGeo_CountryCode (FIPS 10-4, NOT ISO — see
+ * countries.ts) to a proper country/continent. Only covers the countries in
+ * this gazetteer; callers should fall back to GDELT's own raw place name +
+ * an "Unknown" continent for anything not covered.
+ */
+export function getCountryByFips(fips: string): CountryInfo | null {
+  return BY_FIPS[fips] ?? null;
+}
