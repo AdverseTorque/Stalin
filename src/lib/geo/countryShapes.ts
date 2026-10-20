@@ -3,11 +3,12 @@
 import useSWR from "swr";
 import { COUNTRIES } from "@/lib/geo/countries";
 
-// Natural Earth 110m admin-0 countries, trimmed to the properties below and
-// served from our own /public (not fetched from a third-party URL at
-// runtime). `mapColor` is Natural Earth's MAPCOLOR7 — a precomputed
-// 7-colour assignment guaranteeing neighbouring countries never share a
-// colour, which is exactly what gives a political/atlas map its look.
+// Natural Earth admin-0 countries, INDIA point-of-view edition — official
+// Indian boundaries (all of J&K incl. PoK, Gilgit-Baltistan, Aksai Chin),
+// not the default "de facto" edition. Built and border-verified by
+// scripts/build-countries.mjs; served from our own /public. `mapColor` is
+// Natural Earth's MAPCOLOR7 — a precomputed 7-colour assignment
+// guaranteeing neighbouring countries never share a colour (atlas look).
 export interface CountryFeature {
   type: "Feature";
   properties: {
@@ -50,7 +51,7 @@ const fetcher = async (url: string): Promise<CountryCollection> => {
 
 /** Static asset — fetched once and never revalidated. */
 export function useCountryShapes(): CountryFeature[] {
-  const { data } = useSWR("/data/countries-110m.geojson", fetcher, {
+  const { data } = useSWR("/data/countries.geojson", fetcher, {
     revalidateOnFocus: false,
     revalidateIfStale: false,
     revalidateOnReconnect: false,

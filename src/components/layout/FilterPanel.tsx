@@ -36,7 +36,8 @@ export function FilterPanel({
   onClearCountryFilter: () => void;
 }) {
   return (
-    <div className="flex h-full flex-col">
+    // Greenish-black panel per user request ("for now" — easy to revisit).
+    <div className="flex h-full flex-col bg-[#0c1a14]">
       <div className="flex items-center gap-2 border-b border-border px-4 py-3">
         <SlidersHorizontal className="size-3.5 text-ink-muted" aria-hidden />
         <h2 className="font-mono text-xs tracking-widest text-ink-muted uppercase">
@@ -74,8 +75,8 @@ export function FilterPanel({
                 className={cn(
                   "flex items-center gap-2 rounded-lg border px-2.5 py-2 text-left text-xs transition-colors",
                   isActive
-                    ? "border-border-strong bg-surface-2 text-ink"
-                    : "border-transparent text-ink-faint hover:bg-surface-2/60",
+                    ? "border-emerald-700/40 bg-emerald-900/30 text-ink"
+                    : "border-transparent text-ink-faint hover:bg-emerald-900/20",
                 )}
               >
                 <span
