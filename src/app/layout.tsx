@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -15,6 +15,18 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "SITREP",
   description: "Global intelligence command center dashboard.",
+  // iOS home-screen app: full-screen launch and its own title. Opaque status
+  // bar ("black"), not "black-translucent" — translucent would draw the
+  // status bar over the top bar, which has no top safe-area padding.
+  appleWebApp: { capable: true, title: "SITREP", statusBarStyle: "black" },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0a1022",
+  // Without viewport-fit=cover, env(safe-area-inset-*) is always 0, so the
+  // mobile bottom nav's iPhone home-indicator padding never applied.
+  viewportFit: "cover",
+  // Pinch-zoom deliberately left enabled (accessibility).
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

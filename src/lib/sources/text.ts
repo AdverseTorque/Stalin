@@ -16,9 +16,15 @@ export function decodeHtmlEntities(s: string): string {
   });
 }
 
+// Block-level tags separate words; inline tags (<b>, <a>, <i>…) don't —
+// turning every tag into a space produced "Editor ." from "<b>Editor</b>.".
+const BLOCK_TAG = /<\/?(?:br|p|div|li|ul|ol|tr|td|th|h[1-6]|blockquote|section|article)\b[^>]*>/gi;
+
 /** HTML -> single-line plain text (tags stripped, entities decoded, whitespace collapsed). */
 export function htmlToText(html: string): string {
-  return decodeHtmlEntities(html.replace(/<[^>]*>/g, " ")).replace(/\s+/g, " ").trim();
+  return decodeHtmlEntities(html.replace(BLOCK_TAG, " ").replace(/<[^>]*>/g, ""))
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 /**

@@ -34,6 +34,12 @@ blocks automated requests (noted). The registry
 | DW, France 24, NPR, Sky News | RSS | No | |
 | The Diplomat | RSS | No | Asia-Pacific geopolitics. Terms page blocks bots; homepage listed. |
 | UN News | RSS | No | |
+| Telegram — public channels | Public web preview (`t.me/s/<channel>`) | No (list in `TELEGRAM_PUBLIC_CHANNELS`) | Off until the secret is set. Up to 40 channels, 1.5 s between requests. Headline + 400-char snippet + link only. |
+| Telegram — your subscriptions | MTProto (teleproto) | `TELEGRAM_API_ID`, `TELEGRAM_API_HASH`, `TELEGRAM_SESSION` | Off until set. Broadcast channels only — never private chats or groups. Optional allow-list in `TELEGRAM_CHANNELS`. Stops on FloodWait. |
+
+Telegram channel names are never written to Actions logs (counts only),
+but each ingested item's source label shows the channel title on the public
+dashboard — only list channels you're happy to show.
 
 Rejected after probing: **The Print** (malformed XML), **Business Standard**
 (403 for automated readers).
@@ -45,6 +51,11 @@ Rejected after probing: **The Print** (malformed XML), **Business Standard**
   they used to be silently dropped (~40% of BBC/UN News).
 - A deliberately narrow off-topic filter (`src/lib/sources/relevance.ts`)
   removes sport/entertainment/lifestyle stories from general news sections.
+
+**Not implemented:**
+
+| Source | Type | Key required | Status | Notes |
+|---|---|---|---|---|
 | MEA India | — | — | Not implemented | No reliably stable public RSS found as of the Phase 1 research pass — see PLAN.md. Candidate for a later scrape-based adapter. |
 | ACLED | — | — | Not implemented | Deliberately skipped — free-tier licensing for a publicly deployed site is ambiguous. GDELT's conflict/protest event codes cover this instead. See PLAN.md §2. |
 | NewsAPI.org | — | — | Not implemented | Deliberately excluded — its free tier has historically forbidden production/deployed use. See PLAN.md §2. |

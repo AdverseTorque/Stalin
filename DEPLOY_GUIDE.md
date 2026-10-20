@@ -66,8 +66,49 @@ deployment itself now calls Groq** and needs the key too:
 
 Without it, the dashboard still works; Stalin just replies that it isn't configured.
 
-## Later phases
+## First run of the scheduled workflows
 
-- **Phase 8:** generating and storing your Telegram session string as a GitHub Actions secret.
+GitHub doesn't always start a new repository's `schedule:` triggers on its
+own. Start each one once by hand:
 
-Each of those will come with its own exact numbered steps when we get there.
+1. Repo → **Actions** tab → **Ingest** (left sidebar) → **Run workflow** → **Run workflow**.
+2. Same for **Continent Agents**.
+3. Open the run; a green tick means it worked. After that the schedules (every 20 min / twice an hour) take over.
+
+GitHub also pauses schedules after 60 days with no commits to the repo — if
+the feed stops updating, check the Actions tab and re-enable the workflow.
+
+## Phase 8 — Telegram + install as an app
+
+### Telegram, option A: public channels (no account, easiest)
+
+1. Repo → **Settings → Secrets and variables → Actions → New repository secret**.
+2. Name `TELEGRAM_PUBLIC_CHANNELS`, value = comma-separated channel usernames (the part after `t.me/`), e.g. `channel_one,channel_two`.
+3. Run **Ingest** once from the Actions tab to check it.
+
+### Telegram, option B: the channels you're subscribed to
+
+The session string this creates is **full access to your Telegram
+account**. It is printed only in your own terminal and saved nowhere — keep
+it that way: never paste it into a chat, a file in this repo, or `.env.local`.
+
+1. Go to my.telegram.org → **API development tools**, create an app, note the **api_id** and **api_hash**.
+2. In your own terminal, in the project folder: `npm run telegram:login`. Enter the api_id, api_hash, your phone number, the login code Telegram sends you and (if set) your 2-step password. It lists your broadcast channels, then prints the session string.
+3. Add these GitHub Actions secrets (same place as above):
+   - `TELEGRAM_API_ID`, `TELEGRAM_API_HASH` — from step 1.
+   - `TELEGRAM_SESSION` — copy it from your terminal straight into the secret box.
+   - `TELEGRAM_CHANNELS` (optional) — `all`, or comma-separated usernames/ids from the list in step 2.
+4. Run **Ingest** once from the Actions tab. The log shows only counts, never channel names.
+
+To revoke access at any time: Telegram → **Settings → Devices** → end the session.
+
+Only broadcast channels are read (never private chats or groups), but
+items appear on the public dashboard with the channel's title as their
+source — only include channels you're comfortable showing.
+
+### Install SITREP on your phone
+
+- **Android (Chrome):** open the site → ⋮ menu → **Add to Home screen / Install app**.
+- **iPhone (Safari):** open the site → Share → **Add to Home Screen**.
+
+It then opens full-screen like an app, with its own icon.

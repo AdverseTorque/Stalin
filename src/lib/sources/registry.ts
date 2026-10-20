@@ -3,6 +3,8 @@ import { gdeltAdapter } from "@/lib/sources/adapters/gdelt";
 import { guardianAdapter } from "@/lib/sources/adapters/guardian";
 import { gnewsAdapter } from "@/lib/sources/adapters/gnews";
 import { newsdataAdapter } from "@/lib/sources/adapters/newsdata";
+import { telegramMtprotoAdapter } from "@/lib/sources/adapters/telegram-mtproto";
+import { telegramPublicAdapter } from "@/lib/sources/adapters/telegram-public";
 import type { SourceAdapter } from "@/lib/sources/types";
 
 /**
@@ -23,6 +25,9 @@ export const SOURCE_REGISTRY: SourceAdapter[] = [
   guardianAdapter,
   gnewsAdapter,
   newsdataAdapter,
+  // Both disabled until their GitHub secrets are set (see DEPLOY_GUIDE.md).
+  telegramMtprotoAdapter,
+  telegramPublicAdapter,
 
   createRssAdapter({
     name: "BBC World",

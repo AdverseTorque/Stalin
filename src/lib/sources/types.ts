@@ -1,6 +1,6 @@
 import type { EventCategory, Severity } from "@/lib/types";
 
-export type SourceType = "gdelt" | "rss" | "api";
+export type SourceType = "gdelt" | "rss" | "api" | "telegram";
 
 export interface NormalizedItem {
   source: string;

@@ -24,6 +24,12 @@ describe("htmlToText", () => {
   it("strips tags, decodes entities and collapses whitespace", () => {
     expect(htmlToText("<p>Hello&nbsp;<b>world</b></p>\n\n<br/>again")).toBe("Hello world again");
   });
+
+  it("inline tags don't add spaces; block tags separate words", () => {
+    expect(htmlToText("Now has a <b>Rich Text Editor</b>.")).toBe("Now has a Rich Text Editor.");
+    expect(htmlToText("<p>One</p><p>Two</p>")).toBe("One Two");
+    expect(htmlToText("line<br>break")).toBe("line break");
+  });
 });
 
 describe("parsePublished", () => {
