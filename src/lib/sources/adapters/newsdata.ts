@@ -3,8 +3,13 @@ import { classifySeverityFromText } from "@/lib/classify/severity";
 import { detectCountry } from "@/lib/geo/detect";
 import type { NormalizedItem, SourceAdapter } from "@/lib/sources/types";
 
-// [VERIFY] current free-tier quota/terms at newsdata.io/documentation before
-// relying on this in production (not re-checked live — see PLAN.md).
+// Verified live (WebSearch, this session): NewsData.io's /latest endpoint
+// returns a `source_name` field per article — this is also how Reuters
+// content reaches the dashboard. Reuters shut down its own public RSS feeds
+// in 2020 and has no free API; NewsData.io legally includes Reuters as one
+// of its 100,000+ licensed sources, so a Reuters-bylined article here shows
+// up with source_name "Reuters" once NEWSDATA_API_KEY is set — no separate
+// Reuters adapter needed or possible. See SOURCES.md.
 export const newsdataAdapter: SourceAdapter = {
   name: "NewsData.io",
   type: "api",
@@ -36,8 +41,10 @@ export const newsdataAdapter: SourceAdapter = {
       const geo = detectCountry(text);
       if (!geo) continue;
 
+      const sourceName = r.source_name?.trim() || "NewsData.io";
+
       items.push({
-        source: "NewsData.io",
+        source: sourceName,
         sourceType: "api",
         title,
         summary: summary || title,
@@ -49,7 +56,7 @@ export const newsdataAdapter: SourceAdapter = {
         lng: geo.lng,
         country: geo.name,
         continent: geo.continent,
-        tags: [],
+        tags: sourceName.toLowerCase().includes("reuters") ? ["wire"] : [],
       });
     }
     return items;
@@ -61,4 +68,5 @@ interface NewsDataResult {
   description?: string;
   link?: string;
   pubDate?: string;
+  source_name?: string;
 }

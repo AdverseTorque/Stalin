@@ -23,6 +23,15 @@ ever stored — never full article text (`src/lib/sources/adapters/*`).
 | MEA India | — | — | Not implemented | No reliably stable public RSS found as of the Phase 1 research pass — see PLAN.md. Candidate for a later scrape-based adapter. |
 | ACLED | — | — | Not implemented | Deliberately skipped — free-tier licensing for a publicly deployed site is ambiguous. GDELT's conflict/protest event codes cover this instead. See PLAN.md §2. |
 | NewsAPI.org | — | — | Not implemented | Deliberately excluded — its free tier has historically forbidden production/deployed use. See PLAN.md §2. |
+| **Reuters** | — | — | Not a direct source — see below | No current free, legal, programmatic path for an individual. Reaches the dashboard via NewsData.io instead. |
+
+### Why there's no direct Reuters adapter
+
+Checked live (WebSearch) when this was requested:
+- Reuters shut down its own public RSS feeds in **2020** — the old `feeds.reuters.com` URLs no longer resolve. There is no free Reuters API for individuals; redistribution is only available through paid wire syndication (Reuters Connect).
+- The common "workaround" — a Google News RSS search scoped to `site:reuters.com` — was deliberately **not** used: Google News' terms of use restrict the feed to personal, non-commercial reading and explicitly prohibit scraping/redisplaying its content on another site or app. Using it here would be the same class of problem as excluding NewsAPI.org above.
+- GDELT was checked too (it crawls reuters.com among many other wire sources) — a live sample of 60 top-mentioned GDELT events that day returned **zero** reuters.com links, so it isn't a dependable path either.
+- **NewsData.io explicitly lists Reuters among its 100,000+ licensed sources** (confirmed via its own docs/blog). Its `/latest` response includes a `source_name` field per article — `src/lib/sources/adapters/newsdata.ts` now surfaces that real byline instead of hardcoding "NewsData.io", so a Reuters-bylined story shows up labeled **Reuters** once `NEWSDATA_API_KEY` is set. GNews's adapter was updated the same way (it carries `article.source.name` too) for the same reason. No separate adapter needed or legally possible.
 
 "Live-tested" = actually fetched real data from this source during
 development (not just read the docs). The three API sources need their free

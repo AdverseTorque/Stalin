@@ -38,8 +38,10 @@ export const gnewsAdapter: SourceAdapter = {
       const geo = detectCountry(text);
       if (!geo) continue;
 
+      const sourceName = a.source?.name?.trim() || "GNews";
+
       items.push({
-        source: "GNews",
+        source: sourceName,
         sourceType: "api",
         title,
         summary: summary || title,
@@ -51,7 +53,7 @@ export const gnewsAdapter: SourceAdapter = {
         lng: geo.lng,
         country: geo.name,
         continent: geo.continent,
-        tags: [],
+        tags: sourceName.toLowerCase().includes("reuters") ? ["wire"] : [],
       });
     }
     return items;
@@ -63,4 +65,5 @@ interface GNewsArticle {
   description?: string;
   url?: string;
   publishedAt?: string;
+  source?: { name?: string };
 }
