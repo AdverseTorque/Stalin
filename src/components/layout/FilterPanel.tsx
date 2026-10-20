@@ -26,7 +26,10 @@ function FilterPanelImpl({
   onChangeMinSeverity,
   countryFilter,
   onClearCountryFilter,
+  showHeader = true,
 }: {
+  /** Off inside the phone sheet, which has its own title bar. */
+  showHeader?: boolean;
   activeCategories: Set<EventCategory>;
   onToggleCategory: (category: EventCategory) => void;
   timeWindow: TimeWindow;
@@ -39,12 +42,14 @@ function FilterPanelImpl({
   return (
     // Greenish-black panel per user request ("for now" — easy to revisit).
     <div className="flex h-full flex-col bg-[#0c1a14]">
-      <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-        <SlidersHorizontal className="size-3.5 text-ink-muted" aria-hidden />
-        <h2 className="font-mono text-xs tracking-widest text-ink-muted uppercase">
-          Filters
-        </h2>
-      </div>
+      {showHeader && (
+        <div className="flex items-center gap-2 border-b border-border px-4 py-3">
+          <SlidersHorizontal className="size-3.5 text-ink-muted" aria-hidden />
+          <h2 className="font-mono text-xs tracking-widest text-ink-muted uppercase">
+            Filters
+          </h2>
+        </div>
+      )}
       <div className="flex-1 overflow-y-auto p-4">
         {countryFilter && (
           <div className="mb-4 flex items-center justify-between rounded-lg border border-accent/30 bg-accent/10 px-2.5 py-2">

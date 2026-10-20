@@ -1,4 +1,5 @@
 import { memo } from "react";
+import { CircleHelp, SlidersHorizontal } from "lucide-react";
 import type { SitrepEvent } from "@/lib/types";
 import { Ticker } from "@/components/layout/Ticker";
 import { cn } from "@/lib/cn";
@@ -6,9 +7,16 @@ import { cn } from "@/lib/cn";
 function TopBarImpl({
   events,
   dataSource,
+  filtersActive,
+  onOpenFilters,
+  onOpenGuide,
 }: {
   events: SitrepEvent[];
   dataSource: "live" | "mock" | null;
+  /** Any filter narrowed from its default — marks the phone Filters button. */
+  filtersActive: boolean;
+  onOpenFilters: () => void;
+  onOpenGuide: () => void;
 }) {
   return (
     <header className="sticky top-0 z-30 shrink-0 border-b border-border bg-canvas/90 backdrop-blur-sm">
@@ -25,7 +33,7 @@ function TopBarImpl({
             GLOBAL INTELLIGENCE COMMAND CENTER
           </span>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           {dataSource && (
             <span
               className={cn(
@@ -44,8 +52,31 @@ function TopBarImpl({
             </span>
           )}
           <span className="font-mono text-[10px] text-ink-faint">
-            {events.length} TRACKED EVENTS
+            {events.length}
+            <span className="hidden sm:inline"> TRACKED EVENTS</span>
+            <span className="sm:hidden"> EVENTS</span>
           </span>
+          {/* Phones have no filter sidebar — it opens as a sheet instead. */}
+          <button
+            type="button"
+            onClick={onOpenFilters}
+            className="relative flex items-center gap-1 rounded-md border border-border-strong px-2 py-1 font-mono text-[10px] text-ink-muted uppercase md:hidden"
+          >
+            <SlidersHorizontal className="size-3" aria-hidden />
+            Filters
+            {filtersActive && (
+              <span className="absolute -top-1 -right-1 size-2 rounded-full bg-accent" aria-label="(filters on)" />
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={onOpenGuide}
+            aria-label="How to use SITREP"
+            title="How to use SITREP"
+            className="rounded-full p-1 text-ink-muted hover:text-ink"
+          >
+            <CircleHelp className="size-4.5" aria-hidden />
+          </button>
         </div>
       </div>
       <Ticker events={events} />

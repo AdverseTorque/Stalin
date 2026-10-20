@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { AnimatePresence, MotionConfig } from "framer-motion";
 import { GraduationCap } from "lucide-react";
 import {
@@ -23,6 +23,8 @@ import { WorldMap } from "@/components/map/WorldMap";
 import { EventDetailPanel } from "@/components/panels/EventDetailPanel";
 import { AgentsPanel } from "@/components/panels/AgentsPanel";
 import { ComingSoonPanel } from "@/components/panels/ComingSoonPanel";
+import { GuidePanel } from "@/components/panels/GuidePanel";
+import { Sheet } from "@/components/ui/Sheet";
 import { StalinLauncher } from "@/components/assistant/StalinLauncher";
 import { StalinChat } from "@/components/assistant/StalinChat";
 import { STALIN_ACTIONS, type StalinAction } from "@/lib/stalin/actions";
@@ -30,6 +32,7 @@ import { useStalinChat } from "@/lib/stalin/useStalinChat";
 
 const ALL_CATEGORIES = Object.keys(CATEGORY_LABEL) as EventCategory[];
 const SEVERITY_ORDER_LIST: Severity[] = ["low", "medium", "high", "critical"];
+const GUIDE_SEEN_KEY = "sitrep:guide-seen";
 
 export function AppShell() {
   const isDesktop = useIsDesktop();
@@ -44,7 +47,26 @@ export function AppShell() {
   const [minSeverity, setMinSeverity] = useState<Severity>("low");
   const [countryFilter, setCountryFilter] = useState<string | null>(null);
   const [stalinOpen, setStalinOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
   const stalin = useStalinChat();
+
+  // Show the guide once on a first visit. Storage can be unavailable
+  // (private mode, blocked site data) — then it simply isn't auto-shown.
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem(GUIDE_SEEN_KEY)) {
+        localStorage.setItem(GUIDE_SEEN_KEY, "1");
+        setGuideOpen(true); // eslint-disable-line react-hooks/set-state-in-effect -- one-off read of browser-only storage after mount
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+  const openGuide = useCallback(() => setGuideOpen(true), []);
+  const closeGuide = useCallback(() => setGuideOpen(false), []);
+  const openFilters = useCallback(() => setFiltersOpen(true), []);
+  const closeFilters = useCallback(() => setFiltersOpen(false), []);
 
   const toggleCategory = useCallback((category: EventCategory) => {
     setActiveCategories((prev) => {
@@ -57,6 +79,11 @@ export function AppShell() {
   const clearCountryFilter = useCallback(() => setCountryFilter(null), []);
 
   const minSeverityRank = SEVERITY_ORDER_LIST.indexOf(minSeverity);
+  const filtersActive =
+    activeCategories.size < ALL_CATEGORIES.length ||
+    timeWindow !== "7d" ||
+    minSeverity !== "low" ||
+    countryFilter !== null;
 
   // Shared by both filtered sets below — category/severity/country are
   // "always on" filters; only the time window differs between the live
@@ -133,6 +160,21 @@ export function AppShell() {
     />
   );
 
+  // Left sidebar on desktop; a sheet (with its own title bar) on phones.
+  const filterPanel = (showHeader: boolean) => (
+    <FilterPanel
+      showHeader={showHeader}
+      activeCategories={activeCategories}
+      onToggleCategory={toggleCategory}
+      timeWindow={timeWindow}
+      onChangeTimeWindow={setTimeWindow}
+      minSeverity={minSeverity}
+      onChangeMinSeverity={setMinSeverity}
+      countryFilter={countryFilter}
+      onClearCountryFilter={clearCountryFilter}
+    />
+  );
+
   const agentsPanel = <AgentsPanel />;
 
   const stalinPanel = <StalinChat chat={stalin} contextEvent={selectedEvent} />;
@@ -176,21 +218,18 @@ export function AppShell() {
   return (
     <MotionConfig reducedMotion="user">
       <div className="flex h-dvh flex-col overflow-hidden bg-canvas text-ink">
-        <TopBar events={filteredEvents} dataSource={dataSource} />
+        <TopBar
+          events={filteredEvents}
+          dataSource={dataSource}
+          filtersActive={filtersActive}
+          onOpenFilters={openFilters}
+          onOpenGuide={openGuide}
+        />
         <DesktopNav active={activeTab} onChange={changeTab} />
 
         <div className="flex flex-1 overflow-hidden">
           <aside className="hidden w-64 shrink-0 overflow-hidden border-r border-border md:block">
-            <FilterPanel
-              activeCategories={activeCategories}
-              onToggleCategory={toggleCategory}
-              timeWindow={timeWindow}
-              onChangeTimeWindow={setTimeWindow}
-              minSeverity={minSeverity}
-              onChangeMinSeverity={setMinSeverity}
-              countryFilter={countryFilter}
-              onClearCountryFilter={clearCountryFilter}
-            />
+            {filterPanel(true)}
           </aside>
 
           <main className="relative flex-1 overflow-hidden pb-16 md:pb-0">
@@ -233,6 +272,19 @@ export function AppShell() {
               onFilterCountry={setCountryFilter}
               onAskStalin={askStalin}
             />
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {filtersOpen && !isDesktop && (
+            <Sheet key="filters" title="Filters" onClose={closeFilters} className="bg-[#0c1a14]">
+              <div className="h-[60dvh]">{filterPanel(false)}</div>
+            </Sheet>
+          )}
+          {guideOpen && (
+            <Sheet key="guide" title="How to use SITREP" onClose={closeGuide}>
+              <GuidePanel />
+            </Sheet>
           )}
         </AnimatePresence>
 

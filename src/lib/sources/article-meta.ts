@@ -26,6 +26,8 @@ const KNOWN_SITE_NAMES: Record<string, string> = {
   "hindustantimes.com": "Hindustan Times",
   "timesofindia.indiatimes.com": "Times of India",
   "news.un.org": "UN News",
+  "news.cn": "Xinhua",
+  "livemint.com": "Mint",
 };
 
 export interface ArticleMeta {
@@ -97,17 +99,35 @@ function matchMetaContent(html: string, attr: "property" | "name", value: string
 }
 
 
-function deriveSourceName(url: string, ogSiteName: string | null): string {
-  if (ogSiteName) return ogSiteName;
+// og:site_name values that say nothing about the publisher (seen live:
+// "English" on english.news.cn, "News", a bare URL).
+const GENERIC_SITE_NAME = /^(?:en|english|news|home|homepage|website|online|world|latest news)$|^(?:https?:\/\/|www\.)/i;
+
+// "co.uk", "org.il", "com.au"…: the publisher's name is one label further left.
+const SECOND_LEVEL = new Set(["co", "com", "org", "net", "gov", "ac", "edu"]);
+
+/** "english.news.cn" -> "news.cn", "en.idi.org.il" -> "idi.org.il". */
+function registrableDomain(host: string): string {
+  const labels = host.split(".");
+  const n = labels.length;
+  const take = n >= 3 && labels[n - 1].length === 2 && SECOND_LEVEL.has(labels[n - 2]) ? 3 : 2;
+  return labels.slice(-take).join(".");
+}
+
+export function deriveSourceName(url: string, ogSiteName: string | null): string {
+  if (ogSiteName && !GENERIC_SITE_NAME.test(ogSiteName)) return ogSiteName;
   let host: string;
   try {
     host = new URL(url).hostname.replace(/^www\./, "");
   } catch {
     return url; // never show the literal word "Unknown" — the raw url is still a real, honest fallback
   }
-  if (KNOWN_SITE_NAMES[host]) return KNOWN_SITE_NAMES[host];
-  const label = host.split(".")[0];
-  return label
+  const domain = registrableDomain(host);
+  const known = KNOWN_SITE_NAMES[host] ?? KNOWN_SITE_NAMES[domain];
+  if (known) return known;
+  // Subdomains ("en.", "english.", "news.") name a section, not the publisher.
+  return domain
+    .split(".")[0]
     .split(/[-_]/)
     .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w))
     .join(" ");

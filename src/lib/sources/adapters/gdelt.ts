@@ -5,6 +5,7 @@ import { getCountryByFips } from "@/lib/geo/detect";
 import { countryAtPoint } from "@/lib/geo/pointInCountry";
 import { fetchArticleMeta } from "@/lib/sources/article-meta";
 import { UNPLACED_COUNTRY } from "@/lib/sources/place";
+import { isOffTopic } from "@/lib/sources/relevance";
 import type { NormalizedItem, SourceAdapter } from "@/lib/sources/types";
 
 const LAST_UPDATE_URL = "http://data.gdeltproject.org/gdeltv2/lastupdate.txt";
@@ -165,6 +166,7 @@ export function parseGdeltTimestamp(raw: string | undefined): Date | null {
 async function resolveCandidate(c: RawCandidate): Promise<NormalizedItem | null> {
   const meta = await fetchArticleMeta(c.sourceUrl);
   if (!meta.title) return null; // no real headline available — dropped rather than shown with a machine-generated one
+  if (isOffTopic(`${meta.title} ${meta.description ?? ""}`)) return null; // see lib/sources/relevance.ts
 
   // Country by point-in-polygon against the official (India point-of-view)
   // boundaries, so it always agrees with the map — GDELT's own FIPS code

@@ -2,6 +2,7 @@ import { classifyCategory } from "@/lib/classify/category";
 import { classifySeverityFromText } from "@/lib/classify/severity";
 import { placeFromText } from "@/lib/sources/place";
 import { htmlToText, parsePublished } from "@/lib/sources/text";
+import { isOffTopic } from "@/lib/sources/relevance";
 import type { NormalizedItem, SourceAdapter } from "@/lib/sources/types";
 
 // NewsData.io returns a per-article `source_name` — this is also how Reuters
@@ -35,6 +36,7 @@ export const newsdataAdapter: SourceAdapter = {
 
       const summary = htmlToText(r.description ?? "");
       const text = `${title} ${summary}`;
+      if (isOffTopic(text)) continue; // see lib/sources/relevance.ts
       const place = placeFromText(text);
       const sourceName = r.source_name?.trim() || "NewsData.io";
 

@@ -22,6 +22,13 @@ const PATTERN = new RegExp(
   "iu",
 );
 
+// Auto-generated stock-tip articles (a network of sites, e.g. "Daily
+// Political", that GDELT indexes): "Acme Corp (NYSE:ACM) Shares Bought by…",
+// "$ABT Shares…". Matched by an exchange-prefixed ticker, which ordinary
+// business news headlines almost never carry.
+const STOCK_TICKER =
+  /\((?:NYSE|NASDAQ|NasdaqGS|NasdaqGM|NasdaqCM|NYSEARCA|NYSEAMERICAN|AMEX|OTCMKTS|LON|TSE|TSX|ASX|NSE|BSE)\s*:\s*[A-Z][A-Z0-9.]*\)|(?<![\p{L}\p{N}])\$[A-Z]{1,5} Shares\b/u;
+
 export function isOffTopic(text: string): boolean {
-  return PATTERN.test(text);
+  return PATTERN.test(text) || STOCK_TICKER.test(text);
 }

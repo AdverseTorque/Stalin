@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { decodeHtmlEntities, htmlToText, parsePublished } from "@/lib/sources/text";
 import { isOffTopic } from "@/lib/sources/relevance";
 import { toIsoUtc } from "@/lib/sources/adapters/newsdata";
+import { deriveSourceName } from "@/lib/sources/article-meta";
 import { COL, parseExportCsv, parseGdeltTimestamp, previousExportUrls } from "@/lib/sources/adapters/gdelt";
 
 describe("decodeHtmlEntities", () => {
@@ -145,5 +146,31 @@ describe("previousExportUrls", () => {
       "http://data.gdeltproject.org/gdeltv2/20261020234500.export.CSV.zip",
       "http://data.gdeltproject.org/gdeltv2/20261020233000.export.CSV.zip",
     ]);
+  });
+});
+
+describe("isOffTopic — auto-generated stock-tip articles", () => {
+  it.each([
+    "Diversified Energy Company PLC (NYSE:DEC) Stock Has Consensus Target Price of $22.50",
+    "Abbott Laboratories $ABT Shares Bought by Sumitomo Mitsui DS Asset Management",
+  ])("filters: %s", (t) => expect(isOffTopic(t)).toBe(true));
+
+  it.each([
+    "Sensex falls 800 points as foreign investors sell",
+    "US imposes $50 billion in tariffs on Chinese goods",
+  ])("keeps: %s", (t) => expect(isOffTopic(t)).toBe(false));
+});
+
+describe("deriveSourceName", () => {
+  it("keeps a real og:site_name", () => {
+    expect(deriveSourceName("https://example.com/a", "The Example Times")).toBe("The Example Times");
+  });
+
+  it("ignores generic site names and section subdomains (seen live)", () => {
+    expect(deriveSourceName("https://english.news.cn/20261020/x/c.html", "English")).toBe("Xinhua");
+    expect(deriveSourceName("https://en.idi.org.il/articles/66527", "En")).toBe("Idi");
+    expect(deriveSourceName("https://news.crossmap.com/2026/10/20/x", "News")).toBe("Crossmap");
+    expect(deriveSourceName("https://www.oneindia.com/india/x", "https://www.oneindia.com")).toBe("Oneindia");
+    expect(deriveSourceName("https://www.bbc.co.uk/news/x", null)).toBe("BBC");
   });
 });

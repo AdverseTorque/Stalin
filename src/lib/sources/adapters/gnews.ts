@@ -2,6 +2,7 @@ import { classifyCategory } from "@/lib/classify/category";
 import { classifySeverityFromText } from "@/lib/classify/severity";
 import { placeFromText } from "@/lib/sources/place";
 import { htmlToText, parsePublished } from "@/lib/sources/text";
+import { isOffTopic } from "@/lib/sources/relevance";
 import type { NormalizedItem, SourceAdapter } from "@/lib/sources/types";
 
 // Free plan (per gnews.io's own page): 100 requests/day, max 10 articles
@@ -36,6 +37,7 @@ export const gnewsAdapter: SourceAdapter = {
 
       const summary = htmlToText(a.description ?? "");
       const text = `${title} ${summary}`;
+      if (isOffTopic(text)) continue; // see lib/sources/relevance.ts
       const place = placeFromText(text);
       // Real publisher byline (GNews aggregates many outlets) — see SOURCES.md.
       const sourceName = a.source?.name?.trim() || "GNews";

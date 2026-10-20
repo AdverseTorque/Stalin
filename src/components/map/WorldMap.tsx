@@ -4,38 +4,22 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Minus, Plus, RotateCcw } from "lucide-react";
 import { CATEGORY_HEX, SEVERITY_ORDER, type SitrepEvent } from "@/lib/types";
 import { MAP_HEIGHT, MAP_WIDTH, project } from "@/lib/geo/projection";
+import {
+  MAP_ASPECT,
+  clampView,
+  fullView,
+  indiaView,
+  zoomView,
+  type View,
+} from "@/lib/geo/mapView";
 import { cn } from "@/lib/cn";
 
 // Flat 2D world map replacing the 3D globe (user request — the globe's
 // three.js engine, 470KB of country shapes and geometry building stalled
 // the whole UI on load). The map itself is a static SVG drawn at build time
 // (scripts/build-world-map.mjs, official Indian boundaries); only the event
-// markers are rendered live. Zoom/pan just changes the SVG viewBox.
-
-interface View {
-  x: number;
-  y: number;
-  w: number;
-}
-
-const FULL_VIEW: View = { x: 0, y: 0, w: MAP_WIDTH };
-const ASPECT = MAP_HEIGHT / MAP_WIDTH;
-const MIN_W = MAP_WIDTH / 10; // max 10x zoom
-const INDIA_VIEW: View = (() => {
-  const c = project(22, 80);
-  const w = MAP_WIDTH / 4;
-  return { x: c.x - w / 2, y: c.y - (w * ASPECT) / 2, w };
-})();
-
-function clampView(v: View): View {
-  const w = Math.min(MAP_WIDTH, Math.max(MIN_W, v.w));
-  const h = w * ASPECT;
-  return {
-    w,
-    x: Math.min(MAP_WIDTH - w, Math.max(0, v.x)),
-    y: Math.min(MAP_HEIGHT - h, Math.max(0, v.y)),
-  };
-}
+// markers are rendered live. Zoom/pan just changes the SVG viewBox
+// (window maths in src/lib/geo/mapView.ts).
 
 interface MarkerGroup {
   key: string;
@@ -88,8 +72,27 @@ export const WorldMap = memo(function WorldMap({
   loading?: boolean;
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
-  const [view, setView] = useState<View>(FULL_VIEW);
+  const [aspect, setAspect] = useState(MAP_ASPECT);
+  const [view, setView] = useState<View>(() => fullView(MAP_ASPECT));
+  // Until the user zooms/pans, resizes keep the map fully zoomed out.
+  const touched = useRef(false);
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
   const drag = useRef<{ px: number; py: number; view: View; moved: boolean } | null>(null);
+  const pinch = useRef<{ dist: number; view: View } | null>(null);
+
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const ro = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect;
+      if (width === 0 || height === 0) return;
+      const a = height / width;
+      setAspect(a);
+      setView((v) => (touched.current ? clampView(v, a) : fullView(a)));
+    });
+    ro.observe(svg);
+    return () => ro.disconnect();
+  }, []);
 
   // Larger groups draw first so small ones stay clickable on top.
   const groups = useMemo(
@@ -97,21 +100,18 @@ export const WorldMap = memo(function WorldMap({
     [events],
   );
 
-  // Screen px -> map units at the current zoom.
-  const unitsPerPx = useCallback(() => {
-    const rect = svgRef.current?.getBoundingClientRect();
-    if (!rect) return 1;
-    // preserveAspectRatio="meet": the map is fit by whichever axis is tighter.
-    return Math.max(view.w / rect.width, (view.w * ASPECT) / rect.height);
-  }, [view.w]);
+  const zoomAt = useCallback(
+    (factor: number, cx = 0.5, cy = 0.5) => {
+      touched.current = true;
+      setView((v) => zoomView(v, factor, aspect, cx, cy));
+    },
+    [aspect],
+  );
 
-  const zoomAt = useCallback((factor: number, cx = 0.5, cy = 0.5) => {
-    setView((v) => {
-      const w = Math.min(MAP_WIDTH, Math.max(MIN_W, v.w * factor));
-      const h = w * ASPECT;
-      return clampView({ w, x: v.x + (v.w - w) * cx, y: v.y + (v.w * ASPECT - h) * cy });
-    });
-  }, []);
+  const resetView = useCallback(() => {
+    touched.current = false;
+    setView(fullView(aspect));
+  }, [aspect]);
 
   // Wheel zoom around the cursor. Registered manually because React's
   // onWheel is passive, so it can't stop the page from scrolling.
@@ -127,10 +127,45 @@ export const WorldMap = memo(function WorldMap({
     return () => svg.removeEventListener("wheel", onWheel);
   }, [zoomAt]);
 
+  // One pointer pans; two (touch) pinch-zoom around their midpoint.
+  const pinchDistance = () => {
+    const [a, b] = [...pointers.current.values()];
+    return Math.hypot(a.x - b.x, a.y - b.y);
+  };
+
   const onPointerDown = (e: React.PointerEvent) => {
-    drag.current = { px: e.clientX, py: e.clientY, view, moved: false };
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.current.size === 2) {
+      pinch.current = { dist: pinchDistance(), view };
+      if (drag.current) drag.current.moved = true; // a pinch is never a tap
+    } else {
+      drag.current = { px: e.clientX, py: e.clientY, view, moved: false };
+    }
   };
   const onPointerMove = (e: React.PointerEvent) => {
+    if (!pointers.current.has(e.pointerId)) return;
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const rect = svgRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const p = pinch.current;
+    if (p && pointers.current.size === 2) {
+      const dist = pinchDistance();
+      if (dist < 1) return;
+      const [a, b] = [...pointers.current.values()];
+      touched.current = true;
+      setView(
+        zoomView(
+          p.view,
+          p.dist / dist,
+          aspect,
+          ((a.x + b.x) / 2 - rect.left) / rect.width,
+          ((a.y + b.y) / 2 - rect.top) / rect.height,
+        ),
+      );
+      return;
+    }
+
     const d = drag.current;
     if (!d) return;
     const dx = e.clientX - d.px;
@@ -138,10 +173,20 @@ export const WorldMap = memo(function WorldMap({
     if (!d.moved && Math.hypot(dx, dy) < 4) return; // still a click, not a drag
     if (!d.moved) svgRef.current?.setPointerCapture(e.pointerId);
     d.moved = true;
-    const k = unitsPerPx();
-    setView(clampView({ w: d.view.w, x: d.view.x - dx * k, y: d.view.y - dy * k }));
+    touched.current = true;
+    const k = d.view.w / rect.width; // viewBox has the container's shape: one scale for both axes
+    setView(clampView({ w: d.view.w, x: d.view.x - dx * k, y: d.view.y - dy * k }, aspect));
   };
-  const onPointerUp = () => {
+  const onPointerUp = (e: React.PointerEvent) => {
+    pointers.current.delete(e.pointerId);
+    pinch.current = null;
+    if (pointers.current.size === 1) {
+      // One finger of a pinch lifted: keep panning with the other from the
+      // current view (and don't let it count as a tap).
+      const [rest] = [...pointers.current.values()];
+      drag.current = { px: rest.x, py: rest.y, view, moved: true };
+      return;
+    }
     // Defer clearing so the marker's click handler can still see `moved`.
     setTimeout(() => (drag.current = null), 0);
   };
@@ -154,24 +199,26 @@ export const WorldMap = memo(function WorldMap({
 
   // Keep markers the same size on screen at any zoom level.
   const scale = view.w / MAP_WIDTH;
-  const zoomed = view.w < MAP_WIDTH;
+  const pannable = view.w < MAP_WIDTH || view.w * aspect < MAP_HEIGHT;
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-canvas">
       <svg
         ref={svgRef}
-        viewBox={`${view.x} ${view.y} ${view.w} ${view.w * ASPECT}`}
+        viewBox={`${view.x} ${view.y} ${view.w} ${view.w * aspect}`}
         preserveAspectRatio="xMidYMid meet"
-        className={cn("h-full w-full touch-none select-none", zoomed ? "cursor-grab active:cursor-grabbing" : "")}
+        className={cn("h-full w-full touch-none select-none", pannable ? "cursor-grab active:cursor-grabbing" : "")}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        onPointerLeave={onPointerUp}
-        onDoubleClick={() => setView(FULL_VIEW)}
+        onPointerCancel={onPointerUp}
+        onPointerLeave={(e) => e.pointerType === "mouse" && onPointerUp(e)}
+        onDoubleClick={resetView}
         role="img"
         aria-label="World map of tracked events"
       >
-        <rect x={0} y={0} width={MAP_WIDTH} height={MAP_HEIGHT} fill="#0a1a36" />
+        {/* Ocean extends past the map: a view taller than the world shows it above and below. */}
+        <rect x={0} y={-MAP_HEIGHT * 3} width={MAP_WIDTH} height={MAP_HEIGHT * 7} fill="#0a1a36" />
         <image href="/data/world-map.svg" x={0} y={0} width={MAP_WIDTH} height={MAP_HEIGHT} />
 
         {groups.map((g) => {
@@ -234,7 +281,7 @@ export const WorldMap = memo(function WorldMap({
         {[
           { label: "Zoom in", icon: Plus, onClick: () => zoomAt(1 / 1.5) },
           { label: "Zoom out", icon: Minus, onClick: () => zoomAt(1.5) },
-          { label: "Reset view", icon: RotateCcw, onClick: () => setView(FULL_VIEW) },
+          { label: "Reset view", icon: RotateCcw, onClick: resetView },
         ].map(({ label, icon: Icon, onClick }) => (
           <button
             key={label}
@@ -249,7 +296,10 @@ export const WorldMap = memo(function WorldMap({
         ))}
         <button
           type="button"
-          onClick={() => setView(clampView(INDIA_VIEW))}
+          onClick={() => {
+            touched.current = true;
+            setView(indiaView(aspect));
+          }}
           title="Focus on India"
           className="flex h-8 items-center justify-center rounded-md border border-border-strong bg-canvas/85 px-1 font-mono text-[9px] tracking-wide text-ink-muted uppercase backdrop-blur-sm hover:text-ink"
         >
@@ -257,21 +307,34 @@ export const WorldMap = memo(function WorldMap({
         </button>
       </div>
 
-      <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center">
-        <span className="flex items-center gap-1.5 rounded-full border border-border-strong bg-canvas/80 px-3 py-1 font-mono text-[10px] text-ink-muted backdrop-blur-sm">
-          {loading ? (
-            <>
-              <span className="size-1.5 animate-pulse rounded-full bg-accent" aria-hidden />
-              Loading live events…
-            </>
-          ) : selectedEventId ? (
-            "Event selected — see detail panel"
-          ) : countryFilter ? (
-            <>Showing {countryFilter} — clear it in Filters</>
-          ) : (
-            "Scroll to zoom · drag to pan · click a dot for details, a number to filter"
-          )}
-        </span>
+      <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center px-16">
+        {countryFilter && !loading && !selectedEventId ? (
+          <button
+            type="button"
+            onClick={() => onSelectCountry(countryFilter)}
+            className="pointer-events-auto rounded-full border border-accent/50 bg-canvas/85 px-3 py-1 font-mono text-[10px] text-accent backdrop-blur-sm"
+          >
+            Showing {countryFilter} only · tap to show all
+          </button>
+        ) : (
+          <span className="flex items-center gap-1.5 rounded-full border border-border-strong bg-canvas/80 px-3 py-1 text-center font-mono text-[10px] text-ink-muted backdrop-blur-sm">
+            {loading ? (
+              <>
+                <span className="size-1.5 animate-pulse rounded-full bg-accent" aria-hidden />
+                Loading live events…
+              </>
+            ) : selectedEventId ? (
+              "Event selected — see detail panel"
+            ) : (
+              <>
+                <span className="hidden md:inline">
+                  Scroll to zoom · drag to pan · click a dot for details, a number to filter
+                </span>
+                <span className="md:hidden">Pinch to zoom · drag to pan · tap a dot or number</span>
+              </>
+            )}
+          </span>
+        )}
       </div>
     </div>
   );
