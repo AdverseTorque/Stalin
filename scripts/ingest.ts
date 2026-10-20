@@ -6,7 +6,7 @@
 import { config } from "dotenv";
 config({ path: ".env.local" }); // no-op in CI, where env vars are injected directly
 
-import { lt, sql } from "drizzle-orm";
+import { lt, notInArray, sql } from "drizzle-orm";
 import { getAgentRegion } from "@/lib/agents/regions";
 import { getDb } from "@/lib/db/client";
 import { items, sources } from "@/lib/db/schema";
@@ -51,6 +51,13 @@ async function run() {
     }
   }
 
+  // Sources removed from the registry keep their old health rows; mark them
+  // disabled so they don't look like silently-failing sources.
+  await db
+    .update(sources)
+    .set({ enabled: false })
+    .where(notInArray(sources.name, SOURCE_REGISTRY.map((a) => a.name)));
+
   const cutoff = new Date(Date.now() - RETENTION_DAYS * 24 * 60 * 60 * 1000);
   const deleted = await db.delete(items).where(lt(items.publishedAt, cutoff)).returning({ id: items.id });
 
@@ -78,6 +85,7 @@ async function run() {
       .onConflictDoUpdate({
         target: sources.name,
         set: {
+          enabled: true, // re-enable if this source was retired and later re-added
           lastRunAt: new Date(),
           lastRunCount: count,
           lastError: error,

@@ -1,10 +1,15 @@
 import { classifyCategory } from "@/lib/classify/category";
 import { classifySeverityFromText } from "@/lib/classify/severity";
-import { detectCountry } from "@/lib/geo/detect";
+import { placeFromText } from "@/lib/sources/place";
+import { htmlToText, parsePublished } from "@/lib/sources/text";
 import type { NormalizedItem, SourceAdapter } from "@/lib/sources/types";
 
-// [VERIFY] current free-tier quota/terms at open-platform.theguardian.com/access
-// before relying on this in production (not re-checked live — see PLAN.md).
+// One request per section on purpose: whether `section=a|b` (boolean OR)
+// is supported couldn't be confirmed (no official example; the public
+// `api-key=test` key now returns 401), so this sticks to the documented
+// single-value form. 3 sections x 72 runs/day (every 20 min) = 216 calls/day.
+const SECTIONS = ["world", "politics", "business"] as const;
+
 export const guardianAdapter: SourceAdapter = {
   name: "The Guardian",
   type: "api",
@@ -15,46 +20,42 @@ export const guardianAdapter: SourceAdapter = {
     const key = process.env.GUARDIAN_API_KEY;
     if (!key) return [];
 
-    const url = new URL("https://content.guardianapis.com/search");
-    url.searchParams.set("api-key", key);
-    url.searchParams.set("order-by", "newest");
-    url.searchParams.set("page-size", "40");
-    url.searchParams.set("show-fields", "trailText");
-    // World + politics sections cover our 5 categories reasonably well
-    // without pulling in sport/culture noise.
-    url.searchParams.set("section", "world|politics|business|uk-news");
-
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`Guardian API returned ${res.status}`);
-    const json = await res.json();
-    const results: GuardianResult[] = json?.response?.results ?? [];
-
     const items: NormalizedItem[] = [];
-    for (const r of results) {
-      const title = r.webTitle?.trim();
-      const link = r.webUrl?.trim();
-      if (!title || !link) continue;
+    for (const section of SECTIONS) {
+      const url = new URL("https://content.guardianapis.com/search");
+      url.searchParams.set("api-key", key);
+      url.searchParams.set("section", section);
+      url.searchParams.set("order-by", "newest");
+      url.searchParams.set("page-size", "30");
+      url.searchParams.set("show-fields", "trailText");
 
-      const summary = (r.fields?.trailText ?? "").replace(/<[^>]*>/g, "").trim();
-      const text = `${title} ${summary}`;
-      const geo = detectCountry(text);
-      if (!geo) continue; // no placeable location — skipped for the globe in Phase 3
+      const res = await fetch(url, { signal: AbortSignal.timeout(15_000) });
+      if (!res.ok) throw new Error(`Guardian API (${section}) returned ${res.status}`);
+      const json = await res.json();
+      const results: GuardianResult[] = json?.response?.results ?? [];
 
-      items.push({
-        source: "The Guardian",
-        sourceType: "api",
-        title,
-        summary: summary || title,
-        url: link,
-        publishedAt: r.webPublicationDate ? new Date(r.webPublicationDate) : new Date(),
-        category: classifyCategory(text, geo.name),
-        severity: classifySeverityFromText(text),
-        lat: geo.lat,
-        lng: geo.lng,
-        country: geo.name,
-        continent: geo.continent,
-        tags: [],
-      });
+      for (const r of results) {
+        const title = r.webTitle ? htmlToText(r.webTitle) : "";
+        const link = r.webUrl?.trim();
+        if (!title || !link) continue;
+
+        const summary = htmlToText(r.fields?.trailText ?? "");
+        const text = `${title} ${summary}`;
+        const place = placeFromText(text);
+
+        items.push({
+          source: "The Guardian",
+          sourceType: "api",
+          title,
+          summary: summary || title,
+          url: link,
+          publishedAt: parsePublished(r.webPublicationDate) ?? new Date(),
+          category: classifyCategory(text, place.country),
+          severity: classifySeverityFromText(text),
+          ...place,
+          tags: [],
+        });
+      }
     }
     return items;
   },

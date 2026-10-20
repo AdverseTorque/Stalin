@@ -21,8 +21,9 @@ export interface SitrepEvent {
   publishedAt: string; // ISO timestamp
   category: EventCategory;
   severity: Severity;
-  lat: number;
-  lng: number;
+  /** null = names no single country: shown in the feed, not on the map. */
+  lat: number | null;
+  lng: number | null;
   country: string;
   continent: string;
   tags: string[];

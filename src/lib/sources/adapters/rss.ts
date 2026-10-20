@@ -1,27 +1,24 @@
 import Parser from "rss-parser";
 import { classifyCategory } from "@/lib/classify/category";
 import { classifySeverityFromText } from "@/lib/classify/severity";
-import { COUNTRIES, type CountryInfo } from "@/lib/geo/countries";
-import { detectCountry } from "@/lib/geo/detect";
+import { placeFromText } from "@/lib/sources/place";
+import { isOffTopic } from "@/lib/sources/relevance";
+import { htmlToText, parsePublished } from "@/lib/sources/text";
 import type { NormalizedItem, SourceAdapter } from "@/lib/sources/types";
 
 // No `timeout` option needed — fetch() below is given its own AbortSignal,
 // and parseString() just parses text we already have in hand.
 const parser = new Parser();
 
-// Lazily built reverse lookup so RSS feeds with a fixed home country
-// (PIB/MEA = always India) don't depend on detectCountry() finding a
-// mention in the text itself.
-const COUNTRY_BY_NAME: Record<string, CountryInfo> = Object.fromEntries(
-  COUNTRIES.map((c) => [c.name, c]),
-);
-
 export interface RssSourceConfig {
+  /** Unique per feed — also the key for per-source health in the `sources` table. */
   name: string;
+  /** Publisher name shown on items, when several feeds share one publisher ("The Hindu" for National + International). */
+  publisher?: string;
   feedUrl: string;
   homepageUrl: string;
   termsUrl: string;
-  /** Used when detectCountry() can't find a country mention in the text (e.g. PIB/MEA feeds are always about India). */
+  /** Used only when the text names no country (e.g. PIB is always about India). */
   defaultCountry?: string;
 }
 
@@ -44,36 +41,30 @@ export function createRssAdapter(config: RssSourceConfig): SourceAdapter {
         headers: { "User-Agent": "SITREP/0.1 (+https://github.com/AdverseTorque/Stalin)" },
       });
       if (!res.ok) throw new Error(`${config.name} RSS returned ${res.status}`);
-      const xml = await res.text();
-      const feed = await parser.parseString(xml);
+      const feed = await parser.parseString(await res.text());
       const items: NormalizedItem[] = [];
 
       for (const entry of feed.items) {
-        const title = entry.title?.trim();
+        const title = entry.title ? htmlToText(entry.title) : "";
         const url = entry.link?.trim();
         if (!title || !url) continue;
 
-        const summary = stripHtml(entry.contentSnippet ?? entry.content ?? "").slice(0, 400);
-        const publishedAt = entry.isoDate ? new Date(entry.isoDate) : new Date();
+        const summary = htmlToText(entry.contentSnippet ?? entry.content ?? "").slice(0, 400);
         const text = `${title} ${summary}`;
-
-        const detected = detectCountry(text);
-        const geo = detected ?? (config.defaultCountry ? COUNTRY_BY_NAME[config.defaultCountry] : undefined);
-        if (!geo) continue; // can't place it on the globe — skipped for Phase 3 (feed-only items without coordinates can come later)
+        // Every item is kept, placed or not — see lib/sources/place.ts.
+        if (isOffTopic(text)) continue; // sport/entertainment/lifestyle — see lib/sources/relevance.ts
+        const place = placeFromText(text, config.defaultCountry);
 
         items.push({
-          source: config.name,
+          source: config.publisher ?? config.name,
           sourceType: "rss",
           title,
           summary: summary || title,
           url,
-          publishedAt,
-          category: classifyCategory(text, geo.name),
+          publishedAt: parsePublished(entry.isoDate) ?? new Date(),
+          category: classifyCategory(text, place.country),
           severity: classifySeverityFromText(text),
-          lat: geo.lat,
-          lng: geo.lng,
-          country: geo.name,
-          continent: geo.continent,
+          ...place,
           tags: [],
         });
       }
@@ -81,8 +72,4 @@ export function createRssAdapter(config: RssSourceConfig): SourceAdapter {
       return items;
     },
   };
-}
-
-function stripHtml(html: string): string {
-  return html.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
 }

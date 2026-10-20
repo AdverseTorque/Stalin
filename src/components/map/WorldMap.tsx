@@ -55,6 +55,7 @@ interface MarkerGroup {
 function groupEvents(events: SitrepEvent[]): MarkerGroup[] {
   const groups = new Map<string, SitrepEvent[]>();
   for (const e of events) {
+    if (e.lat === null || e.lng === null) continue; // no single country — feed only
     const key = `${e.lat.toFixed(1)},${e.lng.toFixed(1)}`;
     const list = groups.get(key);
     if (list) list.push(e);
@@ -66,7 +67,7 @@ function groupEvents(events: SitrepEvent[]): MarkerGroup[] {
         SEVERITY_ORDER[b.severity] - SEVERITY_ORDER[a.severity] ||
         new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime(),
     )[0];
-    const { x, y } = project(lead.lat, lead.lng);
+    const { x, y } = project(lead.lat!, lead.lng!); // grouped events always have coordinates (filtered above)
     return { key, x, y, events: list, lead, hasCritical: list.some((e) => e.severity === "critical") };
   });
 }

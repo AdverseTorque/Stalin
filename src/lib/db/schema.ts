@@ -39,8 +39,11 @@ export const items = pgTable(
     publishedAt: timestamp("published_at", { withTimezone: true }).notNull(),
     category: text("category").notNull(), // EventCategory
     severity: text("severity").notNull(), // Severity
-    lat: doublePrecision("lat").notNull(),
-    lng: doublePrecision("lng").notNull(),
+    // Nullable: items that name no single country (a global UN statement, a
+    // Mars mission) are kept in the feed without a map position, rather than
+    // dropped — dropping them was costing ~40% of BBC/UN News items.
+    lat: doublePrecision("lat"),
+    lng: doublePrecision("lng"),
     country: text("country").notNull(),
     continent: text("continent").notNull(),
     // One of the 8 continent-agent regions (lib/agents/regions.ts),

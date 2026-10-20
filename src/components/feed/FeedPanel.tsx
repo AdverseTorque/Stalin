@@ -11,6 +11,7 @@ import { FeedCardSkeleton } from "@/components/ui/Skeleton";
 import { cn } from "@/lib/cn";
 
 type ViewMode = "feed" | "timeline";
+const PAGE_SIZE = 100;
 
 function FeedPanelImpl({
   events,
@@ -35,6 +36,8 @@ function FeedPanelImpl({
 }) {
   const [query, setQuery] = useState("");
   const [view, setView] = useState<ViewMode>("feed");
+  // Rendering ~2,000 cards at once made the UI sluggish; show a page at a time.
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   const sorted = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -90,7 +93,10 @@ function FeedPanelImpl({
             <Search className="size-3.5 shrink-0 text-ink-faint" aria-hidden />
             <input
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setVisibleCount(PAGE_SIZE); // new search starts from the top page
+              }}
               placeholder="Search headlines, country, source…"
               className="w-full bg-transparent text-xs text-ink placeholder:text-ink-faint focus:outline-none"
             />
@@ -123,7 +129,7 @@ function FeedPanelImpl({
           />
         ) : (
           <div className="space-y-1.5 p-2">
-            {sorted.map((event) => (
+            {sorted.slice(0, visibleCount).map((event) => (
               <EventCard
                 key={event.id}
                 event={event}
@@ -131,6 +137,15 @@ function FeedPanelImpl({
                 onSelect={onSelect}
               />
             ))}
+            {sorted.length > visibleCount && (
+              <button
+                type="button"
+                onClick={() => setVisibleCount((n) => n + PAGE_SIZE)}
+                className="w-full rounded-lg border border-border py-2 font-mono text-[11px] text-ink-muted transition-colors hover:border-border-strong hover:text-ink"
+              >
+                Show more ({sorted.length - visibleCount} remaining)
+              </button>
+            )}
           </div>
         )}
       </div>

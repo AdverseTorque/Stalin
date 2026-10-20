@@ -9,7 +9,7 @@
 //      github.com/nvkelso/natural-earth-vector (geojson/ folder) — only the
 //      10m scale exists for point-of-view editions.
 //   2. npx mapshaper ne_10m_admin_0_countries_ind.geojson -simplify 4% keep-shapes \
-//        -filter-fields ADMIN,ISO_A2,ISO_A2_EH,ISO_A3,MAPCOLOR7,CONTINENT \
+//        -filter-fields ADMIN,ISO_A2,ISO_A2_EH,ISO_A3,FIPS_10,MAPCOLOR7,CONTINENT \
 //        -o simplified.geojson precision=0.001 format=geojson
 //   3. node scripts/build-countries.mjs simplified.geojson
 //   4. node scripts/build-world-map.mjs   (regenerates public/data/world-map.svg)
@@ -78,7 +78,15 @@ const out = {
       const iso2 = p.ISO_A2 !== "-99" ? p.ISO_A2 : p.ISO_A2_EH;
       return {
         type: "Feature",
-        properties: { name: p.ADMIN, iso2, iso3: p.ISO_A3, mapColor: p.MAPCOLOR7, continent: p.CONTINENT },
+        properties: {
+          name: p.ADMIN,
+          iso2,
+          iso3: p.ISO_A3,
+          // FIPS 10-4: the country code GDELT uses (differs from ISO for many countries).
+          fips: p.FIPS_10 && p.FIPS_10 !== "-99" ? p.FIPS_10 : null,
+          mapColor: p.MAPCOLOR7,
+          continent: p.CONTINENT,
+        },
         geometry: f.geometry,
       };
     }),

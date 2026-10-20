@@ -13,6 +13,7 @@ import type { EventCategory, Severity, SitrepEvent } from "@/lib/types";
 // mock-data fallback as this route's permanent response. See
 // node_modules/next/dist/docs/.../functions/connection.md.
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+const MAX_EVENTS = 2000;
 
 export async function GET() {
   await connection();
@@ -24,7 +25,10 @@ export async function GET() {
       .from(items)
       .where(gte(items.publishedAt, cutoff))
       .orderBy(desc(items.publishedAt))
-      .limit(500);
+      // Newest first. 500 was hiding most of the week once 25+ sources were
+      // ingesting (~1,200 items per run at first). The feed paginates on the
+      // client, so this caps payload size, not what's rendered.
+      .limit(MAX_EVENTS);
 
     if (rows.length === 0) {
       // DB is reachable but empty — most likely ingestion hasn't run yet.

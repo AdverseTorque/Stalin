@@ -8,18 +8,43 @@ here. See `PLAN.md` §2 for the research/reasoning behind these choices.
 Only headlines, short summaries, metadata, and the original source link are
 ever stored — never full article text (`src/lib/sources/adapters/*`).
 
-| Source | Type | Key required | Live-tested | Terms |
-|---|---|---|---|---|
-| GDELT 2.0 | Flat-file (CSV, no API) | No | ✅ (verified live, see below) | https://www.gdeltproject.org/about.html |
-| The Guardian Open Platform | API | `GUARDIAN_API_KEY` | ⚠️ not tested (no key yet) | https://open-platform.theguardian.com/documentation/ |
-| GNews | API | `GNEWS_API_KEY` | ⚠️ not tested (no key yet) | https://gnews.io/docs/v4 |
-| NewsData.io | API | `NEWSDATA_API_KEY` | ⚠️ not tested (no key yet) | https://newsdata.io/documentation |
-| BBC World (RSS) | RSS | No | ✅ (verified live) | https://www.bbc.co.uk/usingthebbc/terms-of-use/ |
-| Al Jazeera (RSS) | RSS | No | ✅ (verified live) | https://www.aljazeera.com/terms-and-conditions/ |
-| The Hindu (RSS) | RSS | No | ✅ (verified live) | https://www.thehindu.com/termsandconditions/ |
-| Indian Express (RSS) | RSS | No | ✅ (verified live) | https://indianexpress.com/terms-of-use/ |
-| UN News (RSS) | RSS | No | ✅ (verified live) | https://www.un.org/en/about-us/terms-of-use |
-| PIB (RSS, via third-party mirror) | RSS | No | ✅ (verified live) | https://pib.gov.in/ (original); mirror: https://github.com/gkgangavarapu/pibindia-rss |
+All feed URLs below were probed live (reachable, parseable, fresh) before
+being added; all terms URLs were fetched and return 200, except where a site
+blocks automated requests (noted). The registry
+(`src/lib/sources/registry.ts`) is the source of truth — this table mirrors it.
+
+| Source | Type | Key required | Notes |
+|---|---|---|---|
+| GDELT 2.0 | Flat-file CSV | No | Reads the latest 2 of its 15-min files per run; up to 40 events/run. Country by point-in-polygon on official Indian boundaries. |
+| The Guardian Open Platform | API | `GUARDIAN_API_KEY` | Not live-tested (no key). One request per section (world/politics/business). |
+| GNews | API | `GNEWS_API_KEY` | Not live-tested (no key). Free: 100 req/day, 10 articles/request. |
+| NewsData.io | API | `NEWSDATA_API_KEY` | Not live-tested (no key). Route to Reuters content (see below). |
+| The Hindu — National, International | RSS | No | |
+| Indian Express — India, World | RSS | No | |
+| Hindustan Times — India, World | RSS | No | |
+| NDTV — India, World | RSS | No | Site blocks automated requests to its terms page; homepage listed. |
+| Times of India — India, World | RSS | No | Terms page lives on indiatimes.com. |
+| Economic Times — Economy | RSS | No | |
+| LiveMint | RSS | No | |
+| RBI press releases | RSS | No | Official, rbi.org.in. |
+| PIB | RSS (third-party mirror) | No | pib.gov.in's own RSS serves Hindi/times out; see note below. |
+| BBC — World, Asia, Business | RSS | No | |
+| Al Jazeera | RSS | No | |
+| The Guardian — World | RSS | No | Public RSS, no key needed (separate from the API above). |
+| DW, France 24, NPR, Sky News | RSS | No | |
+| The Diplomat | RSS | No | Asia-Pacific geopolitics. Terms page blocks bots; homepage listed. |
+| UN News | RSS | No | |
+
+Rejected after probing: **The Print** (malformed XML), **Business Standard**
+(403 for automated readers).
+
+**Placement and filtering** (applies to every RSS/API source):
+- Country detection covers every country (generated from the map data),
+  nationality words ("French", "Australian") and common alternative names.
+  Items naming no single country are **kept** as "Global" (feed, not map) —
+  they used to be silently dropped (~40% of BBC/UN News).
+- A deliberately narrow off-topic filter (`src/lib/sources/relevance.ts`)
+  removes sport/entertainment/lifestyle stories from general news sections.
 | MEA India | — | — | Not implemented | No reliably stable public RSS found as of the Phase 1 research pass — see PLAN.md. Candidate for a later scrape-based adapter. |
 | ACLED | — | — | Not implemented | Deliberately skipped — free-tier licensing for a publicly deployed site is ambiguous. GDELT's conflict/protest event codes cover this instead. See PLAN.md §2. |
 | NewsAPI.org | — | — | Not implemented | Deliberately excluded — its free tier has historically forbidden production/deployed use. See PLAN.md §2. |

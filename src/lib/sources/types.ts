@@ -11,8 +11,9 @@ export interface NormalizedItem {
   publishedAt: Date;
   category: EventCategory;
   severity: Severity;
-  lat: number;
-  lng: number;
+  /** null when the item names no single country (see lib/sources/place.ts). */
+  lat: number | null;
+  lng: number | null;
   country: string;
   continent: string;
   tags: string[];

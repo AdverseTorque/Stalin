@@ -1,0 +1,28 @@
+name: CI
+
+# Runs on every push and pull request: catches a broken build, a type
+# error, a lint error or a failing test before it reaches Vercel.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      # No secrets: the build must succeed without DATABASE_URL (the app
+      # falls back to sample data), which this also verifies.
+      - run: npm run build

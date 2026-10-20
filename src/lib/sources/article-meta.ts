@@ -5,6 +5,7 @@
 // as soon as </head> is seen, since meta tags live there on virtually every
 // real site — avoids downloading full article bodies/scripts just to read
 // two meta tags.
+import { decodeHtmlEntities } from "@/lib/sources/text";
 
 const MAX_BYTES = 200_000;
 const TIMEOUT_MS = 6_000;
@@ -95,16 +96,6 @@ function matchMetaContent(html: string, attr: "property" | "name", value: string
   );
 }
 
-function decodeHtmlEntities(s: string): string {
-  return s
-    .replace(/&amp;/g, "&")
-    .replace(/&quot;/g, '"')
-    .replace(/&#0?39;|&apos;/g, "'")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCodePoint(parseInt(hex, 16)))
-    .replace(/&#(\d+);/g, (_, dec) => String.fromCodePoint(parseInt(dec, 10)));
-}
 
 function deriveSourceName(url: string, ogSiteName: string | null): string {
   if (ogSiteName) return ogSiteName;

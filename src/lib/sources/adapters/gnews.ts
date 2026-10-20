@@ -1,11 +1,12 @@
 import { classifyCategory } from "@/lib/classify/category";
 import { classifySeverityFromText } from "@/lib/classify/severity";
-import { detectCountry } from "@/lib/geo/detect";
+import { placeFromText } from "@/lib/sources/place";
+import { htmlToText, parsePublished } from "@/lib/sources/text";
 import type { NormalizedItem, SourceAdapter } from "@/lib/sources/types";
 
-// [VERIFY] current free-tier quota/terms at gnews.io/docs before relying on
-// this in production (not re-checked live — see PLAN.md). Free tier has a
-// low daily quota, so this is a secondary source, not the primary feed.
+// Free plan (per gnews.io's own page): 100 requests/day, max 10 articles
+// per request, non-commercial use. One request per ingestion run at the
+// 20-minute schedule = 72/day, inside the quota.
 export const gnewsAdapter: SourceAdapter = {
   name: "GNews",
   type: "api",
@@ -20,24 +21,23 @@ export const gnewsAdapter: SourceAdapter = {
     url.searchParams.set("apikey", key);
     url.searchParams.set("lang", "en");
     url.searchParams.set("category", "world");
-    url.searchParams.set("max", "25");
+    url.searchParams.set("max", "10");
 
-    const res = await fetch(url);
+    const res = await fetch(url, { signal: AbortSignal.timeout(15_000) });
     if (!res.ok) throw new Error(`GNews API returned ${res.status}`);
     const json = await res.json();
     const articles: GNewsArticle[] = json?.articles ?? [];
 
     const items: NormalizedItem[] = [];
     for (const a of articles) {
-      const title = a.title?.trim();
+      const title = a.title ? htmlToText(a.title) : "";
       const link = a.url?.trim();
       if (!title || !link) continue;
 
-      const summary = (a.description ?? "").trim();
+      const summary = htmlToText(a.description ?? "");
       const text = `${title} ${summary}`;
-      const geo = detectCountry(text);
-      if (!geo) continue;
-
+      const place = placeFromText(text);
+      // Real publisher byline (GNews aggregates many outlets) — see SOURCES.md.
       const sourceName = a.source?.name?.trim() || "GNews";
 
       items.push({
@@ -46,13 +46,10 @@ export const gnewsAdapter: SourceAdapter = {
         title,
         summary: summary || title,
         url: link,
-        publishedAt: a.publishedAt ? new Date(a.publishedAt) : new Date(),
-        category: classifyCategory(text, geo.name),
+        publishedAt: parsePublished(a.publishedAt) ?? new Date(),
+        category: classifyCategory(text, place.country),
         severity: classifySeverityFromText(text),
-        lat: geo.lat,
-        lng: geo.lng,
-        country: geo.name,
-        continent: geo.continent,
+        ...place,
         tags: sourceName.toLowerCase().includes("reuters") ? ["wire"] : [],
       });
     }
