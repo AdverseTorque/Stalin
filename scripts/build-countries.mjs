@@ -1,4 +1,4 @@
-// Builds public/data/countries.geojson from Natural Earth's INDIA
+// Builds data/countries.geojson from Natural Earth's INDIA
 // point-of-view edition (official Indian boundaries: all of Jammu &
 // Kashmir incl. PoK, Gilgit-Baltistan, Aksai Chin, Shaksgam; Arunachal),
 // not the default "de facto" edition, which draws the Line of Control.
@@ -12,12 +12,13 @@
 //        -filter-fields ADMIN,ISO_A2,ISO_A2_EH,ISO_A3,MAPCOLOR7,CONTINENT \
 //        -o simplified.geojson precision=0.001 format=geojson
 //   3. node scripts/build-countries.mjs simplified.geojson
+//   4. node scripts/build-world-map.mjs   (regenerates public/data/world-map.svg)
 // Don't simplify below 4%: at 2% the PoK border moved enough that
 // Muzaffarabad fell on Pakistan's side (caught by the checks below).
 import { readFileSync, writeFileSync } from "node:fs";
 
 const SRC = process.argv[2];
-const OUT = new URL("../public/data/countries.geojson", import.meta.url);
+const OUT = new URL("../data/countries.geojson", import.meta.url);
 const geo = JSON.parse(readFileSync(SRC, "utf8"));
 
 function inRing(lng, lat, ring) {

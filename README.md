@@ -11,8 +11,8 @@ name/branding of, or claim affiliation with any real intelligence agency.
 
 ## Status
 
-Phases 1–6 complete: live deploy, responsive UI shell, political-map globe
-(official Indian boundaries), real data ingestion (GDELT +
+Phases 1–6 complete: live deploy, responsive UI shell, lightweight flat
+world map (static SVG, official Indian boundaries), real data ingestion (GDELT +
 Guardian/GNews/NewsData.io + RSS), functional filters/timeline/
 similar-context, 8 regional AI agents + an MCP endpoint, and the Stalin
 assistant (streaming, retrieval over the 7-day database, cited answers). See

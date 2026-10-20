@@ -19,7 +19,7 @@ import { DesktopNav } from "@/components/layout/DesktopNav";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { FilterPanel } from "@/components/layout/FilterPanel";
 import { FeedPanel } from "@/components/feed/FeedPanel";
-import { GlobeView } from "@/components/globe/GlobeView";
+import { WorldMap } from "@/components/map/WorldMap";
 import { EventDetailPanel } from "@/components/panels/EventDetailPanel";
 import { AgentsPanel } from "@/components/panels/AgentsPanel";
 import { ComingSoonPanel } from "@/components/panels/ComingSoonPanel";
@@ -60,7 +60,7 @@ export function AppShell() {
 
   // Shared by both filtered sets below — category/severity/country are
   // "always on" filters; only the time window differs between the live
-  // feed/globe and the Timeline view (which always spans the full 7 days).
+  // feed/map and the Timeline view (which always spans the full 7 days).
   const passesBaseFilters = (e: (typeof events)[number]) =>
     activeCategories.has(e.category) &&
     SEVERITY_ORDER_LIST.indexOf(e.severity) >= minSeverityRank &&
@@ -85,8 +85,8 @@ export function AppShell() {
 
   const closeDetail = () => setSelectedEventId(null);
 
-  // Stable identity matters: GlobeView is memo'd, so an inline arrow here
-  // would defeat that and re-render the globe on every AppShell render.
+  // Stable identity matters: WorldMap is memo'd, so an inline arrow here
+  // would defeat that and re-render the map on every AppShell render.
   const toggleCountryFilter = useCallback(
     (country: string) => setCountryFilter((prev) => (prev === country ? null : country)),
     [],
@@ -109,8 +109,8 @@ export function AppShell() {
     else changeTab("stalin");
   };
 
-  const globe = (
-    <GlobeView
+  const map = (
+    <WorldMap
       events={filteredEvents}
       selectedEventId={selectedEventId}
       onSelectEvent={setSelectedEventId}
@@ -146,14 +146,12 @@ export function AppShell() {
     />
   );
 
-  // Center stage: the globe must only ever be mounted once (a second WebGL
-  // context on mobile would be wasted GPU/memory), so which single tree gets
-  // rendered here depends on the breakpoint rather than on two parallel
-  // layouts both being mounted.
+  // Center stage: desktop always shows the map; mobile shows whichever tab
+  // is active (one tree mounted, not two parallel layouts).
   const centerStage = isDesktop
-    ? globe
+    ? map
     : activeTab === "map"
-      ? globe
+      ? map
       : activeTab === "feed"
         ? feed
         : activeTab === "agents"
