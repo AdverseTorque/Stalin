@@ -11,10 +11,20 @@ name/branding of, or claim affiliation with any real intelligence agency.
 
 ## Status
 
-Currently in **Phase 1** (project setup / first deploy). See
+Phases 1–5 complete: live deploy, responsive UI shell, real data ingestion
+(GDELT + Guardian/GNews/NewsData.io + RSS), functional filters/timeline/
+similar-context, and 8 regional AI agents + an MCP endpoint. See
 [PLAN.md](./PLAN.md) for the full architecture, data sources, database
 schema, and phased build plan, and [PROMPT.md](./PROMPT.md) for the original
 project brief.
+
+## MCP endpoint
+
+`/api/mcp` exposes this dashboard's own data to any MCP-compatible client
+(e.g. Claude Desktop) over the streamable-HTTP transport — tools:
+`search_events`, `get_region_summary`, `get_country_timeline`,
+`get_item_by_id`. No API key needed to query it; it only reads the public
+7-day event data this dashboard already shows.
 
 ## Stack
 

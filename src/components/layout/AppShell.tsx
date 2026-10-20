@@ -2,7 +2,7 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import { AnimatePresence, MotionConfig } from "framer-motion";
-import { Bot, GraduationCap, Users } from "lucide-react";
+import { Bot, GraduationCap } from "lucide-react";
 import {
   CATEGORY_LABEL,
   TIME_WINDOW_MS,
@@ -21,6 +21,7 @@ import { FilterPanel } from "@/components/layout/FilterPanel";
 import { FeedPanel } from "@/components/feed/FeedPanel";
 import { GlobeView } from "@/components/globe/GlobeView";
 import { EventDetailPanel } from "@/components/panels/EventDetailPanel";
+import { AgentsPanel } from "@/components/panels/AgentsPanel";
 import { ComingSoonPanel } from "@/components/panels/ComingSoonPanel";
 import { StalinLauncher } from "@/components/assistant/StalinLauncher";
 
@@ -105,15 +106,9 @@ export function AppShell() {
     />
   );
 
-  const comingSoon: Record<"agents" | "upsc" | "stalin", ReactNode> = {
-    agents: (
-      <ComingSoonPanel
-        icon={Users}
-        label="Continent Agents"
-        title="Situation reports arrive in Phase 5"
-        description="Eight regional AI agents will cluster today's events and flag high-severity items as NEWS FLASH — South Asia/India gets its own dedicated agent."
-      />
-    ),
+  const agentsPanel = <AgentsPanel />;
+
+  const comingSoon: Record<"upsc" | "stalin", ReactNode> = {
     upsc: (
       <ComingSoonPanel
         icon={GraduationCap}
@@ -142,12 +137,16 @@ export function AppShell() {
       ? globe
       : activeTab === "feed"
         ? feed
-        : comingSoon[activeTab];
+        : activeTab === "agents"
+          ? agentsPanel
+          : comingSoon[activeTab];
 
   const rightPanelContent =
-    activeTab === "agents" || activeTab === "upsc" || activeTab === "stalin"
-      ? comingSoon[activeTab]
-      : feed;
+    activeTab === "agents"
+      ? agentsPanel
+      : activeTab === "upsc" || activeTab === "stalin"
+        ? comingSoon[activeTab]
+        : feed;
 
   return (
     <MotionConfig reducedMotion="user">

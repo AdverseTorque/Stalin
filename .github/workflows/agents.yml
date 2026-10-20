@@ -1,0 +1,28 @@
+name: Continent Agents
+
+on:
+  schedule:
+    # Every 30 minutes, offset from the ingest workflow so agents always
+    # run against freshly-ingested data rather than racing it.
+    - cron: "10,40 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  agents:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Generate region situation reports
+        run: npm run agents
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}

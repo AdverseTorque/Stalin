@@ -43,10 +43,20 @@ updates.
 
 ---
 
-## Later phases (sections added as we reach them)
+## Phase 3 — database + data sources
 
-- **Phase 3:** adding the Neon database connection string and news/API keys as environment variables (in both `.env.local` locally and the Vercel dashboard).
-- **Phase 5:** adding your `GROQ_API_KEY`.
+1. Created a free Neon Postgres project at console.neon.tech, copied its connection string into `DATABASE_URL` in `.env.local` (never committed, never pasted into chat).
+2. Same connection string added as an environment variable in Vercel (**Settings → Environment Variables**) and as a GitHub Actions secret (**repo Settings → Secrets and variables → Actions**) — Vercel needs it to *serve* live data, GitHub Actions needs it to *write* ingested data on its schedule.
+3. (Optional) free API keys for Guardian/GNews/NewsData.io, added the same way.
+
+## Phase 5 — continent agents + MCP endpoint
+
+1. Got a free `GROQ_API_KEY` from console.groq.com, added it to `.env.local`.
+2. Add the same key as a **GitHub Actions secret** only (repo **Settings → Secrets and variables → Actions → New repository secret**, name `GROQ_API_KEY`) — the agents run on a schedule via GitHub Actions and write their reports to the database; Vercel itself never calls Groq directly, so it does **not** need this secret.
+3. No Vercel changes needed for this phase.
+
+## Later phases
+
 - **Phase 8:** generating and storing your Telegram session string as a GitHub Actions secret.
 
 Each of those will come with its own exact numbered steps when we get there.

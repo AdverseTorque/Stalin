@@ -43,6 +43,12 @@ export const items = pgTable(
     lng: doublePrecision("lng").notNull(),
     country: text("country").notNull(),
     continent: text("continent").notNull(),
+    // One of the 8 continent-agent regions (lib/agents/regions.ts),
+    // computed once at ingestion time rather than re-derived on every
+    // query. Nullable — some items' country/continent can't be resolved
+    // to one of the 8 regions (see getAgentRegion()), and are simply
+    // excluded from every agent rather than guessed at.
+    agentRegion: text("agent_region"),
     tags: text("tags").array().notNull().default([]),
     contentHash: text("content_hash").notNull().unique(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -50,9 +56,30 @@ export const items = pgTable(
   (table) => [
     // Both the 7-day feed query and the retention cleanup filter/sort on this.
     index("items_published_at_idx").on(table.publishedAt),
+    // Each continent agent's run queries "recent items in my region".
+    index("items_agent_region_idx").on(table.agentRegion),
   ],
+);
+
+// One row per agent run per region — accumulates as a history (unlike
+// `items`, these are NOT subject to the 7-day retention purge; see
+// PLAN.md's bookmarks/situation_reports design note).
+export const situationReports = pgTable(
+  "situation_reports",
+  {
+    id: serial("id").primaryKey(),
+    region: text("region").notNull(), // AgentRegion
+    generatedAt: timestamp("generated_at", { withTimezone: true }).notNull().defaultNow(),
+    summaryMd: text("summary_md").notNull(),
+    itemIds: integer("item_ids").array().notNull().default([]),
+    isNewsFlash: boolean("is_news_flash").notNull().default(false),
+    severity: text("severity").notNull(), // Severity — the highest among the items it covers
+  },
+  (table) => [index("situation_reports_region_idx").on(table.region, table.generatedAt)],
 );
 
 export type ItemRow = typeof items.$inferSelect;
 export type NewItemRow = typeof items.$inferInsert;
 export type SourceRow = typeof sources.$inferSelect;
+export type SituationReportRow = typeof situationReports.$inferSelect;
+export type NewSituationReportRow = typeof situationReports.$inferInsert;

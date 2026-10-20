@@ -7,6 +7,7 @@ import { config } from "dotenv";
 config({ path: ".env.local" }); // no-op in CI, where env vars are injected directly
 
 import { lt, sql } from "drizzle-orm";
+import { getAgentRegion } from "@/lib/agents/regions";
 import { getDb } from "@/lib/db/client";
 import { items, sources } from "@/lib/db/schema";
 import { contentHash } from "@/lib/sources/hash";
@@ -98,7 +99,11 @@ function toRows(raw: NormalizedItem[]) {
     const key = `${item.url}|${hash}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    rows.push({ ...item, contentHash: hash });
+    rows.push({
+      ...item,
+      contentHash: hash,
+      agentRegion: getAgentRegion(item.country, item.continent),
+    });
   }
   return rows;
 }
