@@ -3,8 +3,8 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { AnimatePresence, MotionConfig } from "framer-motion";
 import { Bot, GraduationCap, Users } from "lucide-react";
-import { MOCK_EVENTS } from "@/lib/mock/events";
 import { CATEGORY_LABEL, type EventCategory, type NavTab } from "@/lib/types";
+import { useEvents } from "@/lib/useEvents";
 import { useIsDesktop } from "@/lib/useIsDesktop";
 import { TopBar } from "@/components/layout/TopBar";
 import { DesktopNav } from "@/components/layout/DesktopNav";
@@ -20,6 +20,7 @@ const ALL_CATEGORIES = Object.keys(CATEGORY_LABEL) as EventCategory[];
 
 export function AppShell() {
   const isDesktop = useIsDesktop();
+  const { events, loading, error, dataSource, refresh } = useEvents();
   const [activeTab, setActiveTab] = useState<NavTab>("map");
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [activeCategories, setActiveCategories] = useState<Set<EventCategory>>(
@@ -36,13 +37,13 @@ export function AppShell() {
   };
 
   const filteredEvents = useMemo(
-    () => MOCK_EVENTS.filter((e) => activeCategories.has(e.category)),
-    [activeCategories],
+    () => events.filter((e) => activeCategories.has(e.category)),
+    [events, activeCategories],
   );
 
   const selectedEvent = useMemo(
-    () => MOCK_EVENTS.find((e) => e.id === selectedEventId) ?? null,
-    [selectedEventId],
+    () => events.find((e) => e.id === selectedEventId) ?? null,
+    [events, selectedEventId],
   );
 
   const closeDetail = () => setSelectedEventId(null);
@@ -57,6 +58,7 @@ export function AppShell() {
       events={filteredEvents}
       selectedEventId={selectedEventId}
       onSelectEvent={setSelectedEventId}
+      loading={loading}
     />
   );
 
@@ -65,6 +67,9 @@ export function AppShell() {
       events={filteredEvents}
       selectedEventId={selectedEventId}
       onSelect={setSelectedEventId}
+      loading={loading && events.length === 0}
+      error={error}
+      onRetry={refresh}
     />
   );
 
@@ -115,7 +120,7 @@ export function AppShell() {
   return (
     <MotionConfig reducedMotion="user">
       <div className="flex h-dvh flex-col overflow-hidden bg-canvas text-ink">
-        <TopBar events={filteredEvents} />
+        <TopBar events={filteredEvents} dataSource={dataSource} />
         <DesktopNav active={activeTab} onChange={changeTab} />
 
         <div className="flex flex-1 overflow-hidden">

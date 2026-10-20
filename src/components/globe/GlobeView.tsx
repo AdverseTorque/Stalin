@@ -19,10 +19,12 @@ export function GlobeView({
   events,
   selectedEventId,
   onSelectEvent,
+  loading = false,
 }: {
   events: SitrepEvent[];
   selectedEventId: string | null;
   onSelectEvent: (id: string) => void;
+  loading?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const globeRef = useRef<GlobeMethods | undefined>(undefined);
@@ -107,10 +109,17 @@ export function GlobeView({
         />
       ) : null}
 
-      {selectedEventId && webglOk !== false && (
+      {webglOk !== false && (loading || selectedEventId) && (
         <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center">
-          <span className="rounded-full border border-border-strong bg-canvas/80 px-3 py-1 font-mono text-[10px] text-ink-muted backdrop-blur-sm">
-            Marker selected — see detail panel
+          <span className="flex items-center gap-1.5 rounded-full border border-border-strong bg-canvas/80 px-3 py-1 font-mono text-[10px] text-ink-muted backdrop-blur-sm">
+            {loading ? (
+              <>
+                <span className="size-1.5 animate-pulse rounded-full bg-accent" aria-hidden />
+                Loading live events…
+              </>
+            ) : (
+              "Marker selected — see detail panel"
+            )}
           </span>
         </div>
       )}

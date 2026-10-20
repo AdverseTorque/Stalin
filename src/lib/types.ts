@@ -71,6 +71,13 @@ export const SEVERITY_WEIGHT: Record<Severity, number> = {
   critical: 1,
 };
 
+export const SEVERITY_ORDER: Record<Severity, number> = {
+  low: 0,
+  medium: 1,
+  high: 2,
+  critical: 3,
+};
+
 export type NavTab = "map" | "feed" | "agents" | "upsc" | "stalin";
 
 export const NAV_TABS: { id: NavTab; label: string }[] = [
