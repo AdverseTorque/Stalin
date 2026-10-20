@@ -3,9 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import type { GlobeMethods } from "react-globe.gl";
+import * as THREE from "three";
 import { AlertTriangle } from "lucide-react";
 import { CATEGORY_HEX, SEVERITY_WEIGHT, type SitrepEvent } from "@/lib/types";
 import { isWebGLAvailable } from "@/lib/webgl";
+import { resolveCountryName, useCountryShapes, type CountryFeature } from "@/lib/geo/countryShapes";
 import { createStarfield, type Starfield } from "@/components/globe/starfield";
 import { EmptyState } from "@/components/ui/EmptyState";
 
@@ -14,17 +16,61 @@ import { EmptyState } from "@/components/ui/EmptyState";
 // Next.js still server-renders an initial HTML pass unless ssr is disabled.
 const Globe = dynamic(() => import("react-globe.gl"), { ssr: false });
 
-const GLOBE_TEXTURE = "https://unpkg.com/three-globe/example/img/earth-dark.jpg";
+// Political-map palette, indexed by Natural Earth's MAPCOLOR7 (1–7), which
+// already guarantees neighbouring countries never share a colour. Muted
+// atlas tones tuned to sit on the dark navy ocean without going flat/black.
+const MAP_PALETTE = ["#3e5f80", "#4c705f", "#6c5c84", "#806e4f", "#4e7380", "#80566a", "#5f7048"];
+const OCEAN = "#0a1a36";
+const BORDER = "rgba(226, 232, 240, 0.38)";
+const BORDER_FILTERED = "#7dd3fc";
+const HOVER_TINT = "#38bdf8";
+
+// Altitudes are layered so markers/rings always sit above any country
+// shape, even a raised (hovered) one — otherwise a hovered country would
+// swallow low-severity markers on it.
+const ALT_BASE = 0.005;
+const ALT_ACTIVE = 0.009;
+const ALT_HOVER = 0.016;
+const ALT_RINGS = 0.018;
+const ALT_POINT_MIN = 0.022;
+
+function mix(hex: string, target: string, t: number): string {
+  const a = parseInt(hex.slice(1), 16);
+  const b = parseInt(target.slice(1), 16);
+  const ch = (shift: number) =>
+    Math.round(((a >> shift) & 255) * (1 - t) + ((b >> shift) & 255) * t);
+  return `rgb(${ch(16)}, ${ch(8)}, ${ch(0)})`;
+}
+
+// Flat-colour ocean instead of the old photographic earth texture — the
+// country shapes now carry the land, so the sphere itself is just sea.
+// Created lazily, and only from inside the client-only Globe branch:
+// Three.js assigns every material a random UUID (Math.random()), which
+// Next.js 16's cacheComponents refuses to evaluate during prerendering.
+// One shared instance for the app's lifetime — the globe mounts once.
+let oceanMaterial: THREE.MeshPhongMaterial | null = null;
+function getOceanMaterial(): THREE.MeshPhongMaterial {
+  oceanMaterial ??= new THREE.MeshPhongMaterial({ color: OCEAN, emissive: "#061024", shininess: 6 });
+  return oceanMaterial;
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+}
 
 export function GlobeView({
   events,
   selectedEventId,
   onSelectEvent,
+  countryFilter,
+  onSelectCountry,
   loading = false,
 }: {
   events: SitrepEvent[];
   selectedEventId: string | null;
   onSelectEvent: (id: string) => void;
+  countryFilter: string | null;
+  onSelectCountry: (country: string) => void;
   loading?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -33,6 +79,8 @@ export function GlobeView({
   const starfieldRafRef = useRef<number | null>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [webglOk, setWebglOk] = useState<boolean | null>(null);
+  const [hovered, setHovered] = useState<CountryFeature | null>(null);
+  const countries = useCountryShapes();
 
   useEffect(() => {
     // One-time browser-capability probe on mount, not state synchronized
@@ -59,6 +107,32 @@ export function GlobeView({
     () => events.filter((e) => e.severity === "critical"),
     [events],
   );
+
+  const eventCountByCountry = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const e of events) counts.set(e.country, (counts.get(e.country) ?? 0) + 1);
+    return counts;
+  }, [events]);
+
+  const countryColor = (f: CountryFeature) => {
+    const base = MAP_PALETTE[(f.properties.mapColor - 1 + MAP_PALETTE.length) % MAP_PALETTE.length];
+    if (f === hovered) return mix(base, HOVER_TINT, 0.45);
+    const active = eventCountByCountry.has(resolveCountryName(f));
+    return active ? mix(base, "#ffffff", 0.2) : base;
+  };
+
+  const countryAltitude = (f: CountryFeature) => {
+    if (f === hovered) return ALT_HOVER;
+    return eventCountByCountry.has(resolveCountryName(f)) ? ALT_ACTIVE : ALT_BASE;
+  };
+
+  const countryLabel = (f: CountryFeature) => {
+    const name = resolveCountryName(f);
+    const count = eventCountByCountry.get(name) ?? 0;
+    return `<div style="padding:4px 8px;border-radius:6px;background:rgba(10,16,34,0.9);border:1px solid rgba(148,163,184,0.3);font:12px ui-monospace,monospace;color:#e7ecf6">
+      ${escapeHtml(name)}<span style="color:#9aa8c4"> · ${count} event${count === 1 ? "" : "s"}</span>
+    </div>`;
+  };
 
   const handleGlobeReady = () => {
     const controls = globeRef.current?.controls();
@@ -90,6 +164,13 @@ export function GlobeView({
       }
     }
   };
+
+  // Pause auto-rotation while a country is hovered, so it doesn't slide
+  // out from under the cursor mid-read.
+  useEffect(() => {
+    const controls = globeRef.current?.controls();
+    if (controls) controls.autoRotate = hovered === null;
+  }, [hovered]);
 
   useEffect(() => {
     return () => {
@@ -134,25 +215,34 @@ export function GlobeView({
           width={size.width}
           height={size.height}
           backgroundColor="rgba(0,0,0,0)"
-          globeImageUrl={GLOBE_TEXTURE}
+          globeImageUrl={null}
+          globeMaterial={getOceanMaterial()}
           atmosphereColor="#38bdf8"
-          atmosphereAltitude={0.22}
+          atmosphereAltitude={0.2}
           onGlobeReady={handleGlobeReady}
+          polygonsData={countries}
+          polygonCapColor={(d) => countryColor(d as CountryFeature)}
+          polygonSideColor={() => "rgba(8, 14, 30, 0.75)"}
+          polygonStrokeColor={(d) =>
+            countryFilter && resolveCountryName(d as CountryFeature) === countryFilter ? BORDER_FILTERED : BORDER
+          }
+          polygonAltitude={(d) => countryAltitude(d as CountryFeature)}
+          polygonsTransitionDuration={250}
+          polygonLabel={(d) => countryLabel(d as CountryFeature)}
+          onPolygonHover={(d) => setHovered((d as CountryFeature | null) ?? null)}
+          onPolygonClick={(d) => onSelectCountry(resolveCountryName(d as CountryFeature))}
           pointsData={events}
           pointLat={(d) => (d as SitrepEvent).lat}
           pointLng={(d) => (d as SitrepEvent).lng}
           pointColor={(d) => CATEGORY_HEX[(d as SitrepEvent).category]}
-          pointAltitude={(d) =>
-            0.01 + SEVERITY_WEIGHT[(d as SitrepEvent).severity] * 0.03
-          }
-          pointRadius={(d) =>
-            0.35 + SEVERITY_WEIGHT[(d as SitrepEvent).severity] * 0.55
-          }
-          pointLabel={(d) => (d as SitrepEvent).title}
+          pointAltitude={(d) => ALT_POINT_MIN + SEVERITY_WEIGHT[(d as SitrepEvent).severity] * 0.03}
+          pointRadius={(d) => 0.35 + SEVERITY_WEIGHT[(d as SitrepEvent).severity] * 0.55}
+          pointLabel={(d) => escapeHtml((d as SitrepEvent).title)}
           onPointClick={(d) => onSelectEvent((d as SitrepEvent).id)}
           ringsData={criticalRings}
           ringLat={(d) => (d as SitrepEvent).lat}
           ringLng={(d) => (d as SitrepEvent).lng}
+          ringAltitude={ALT_RINGS}
           ringColor={() => CATEGORY_HEX.conflict}
           ringMaxRadius={3}
           ringPropagationSpeed={2}
@@ -160,7 +250,7 @@ export function GlobeView({
         />
       ) : null}
 
-      {webglOk !== false && (loading || selectedEventId) && (
+      {webglOk !== false && (
         <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center">
           <span className="flex items-center gap-1.5 rounded-full border border-border-strong bg-canvas/80 px-3 py-1 font-mono text-[10px] text-ink-muted backdrop-blur-sm">
             {loading ? (
@@ -168,8 +258,12 @@ export function GlobeView({
                 <span className="size-1.5 animate-pulse rounded-full bg-accent" aria-hidden />
                 Loading live events…
               </>
-            ) : (
+            ) : selectedEventId ? (
               "Marker selected — see detail panel"
+            ) : countryFilter ? (
+              <>Showing {countryFilter} — click it again to clear</>
+            ) : (
+              "Click a country to filter · click a marker for details"
             )}
           </span>
         </div>

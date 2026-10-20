@@ -89,6 +89,8 @@ export function AppShell() {
       events={filteredEvents}
       selectedEventId={selectedEventId}
       onSelectEvent={setSelectedEventId}
+      countryFilter={countryFilter}
+      onSelectCountry={(country) => setCountryFilter((prev) => (prev === country ? null : country))}
       loading={loading}
     />
   );
