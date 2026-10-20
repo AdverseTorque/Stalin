@@ -19,7 +19,7 @@ ever stored — never full article text (`src/lib/sources/adapters/*`).
 | The Hindu (RSS) | RSS | No | ✅ (verified live) | https://www.thehindu.com/termsandconditions/ |
 | Indian Express (RSS) | RSS | No | ✅ (verified live) | https://indianexpress.com/terms-of-use/ |
 | UN News (RSS) | RSS | No | ✅ (verified live) | https://www.un.org/en/about-us/terms-of-use |
-| PIB (RSS) | RSS | No | ✅ (verified live) | https://pib.gov.in/ |
+| PIB (RSS, via third-party mirror) | RSS | No | ✅ (verified live) | https://pib.gov.in/ (original); mirror: https://github.com/gkgangavarapu/pibindia-rss |
 | MEA India | — | — | Not implemented | No reliably stable public RSS found as of the Phase 1 research pass — see PLAN.md. Candidate for a later scrape-based adapter. |
 | ACLED | — | — | Not implemented | Deliberately skipped — free-tier licensing for a publicly deployed site is ambiguous. GDELT's conflict/protest event codes cover this instead. See PLAN.md §2. |
 | NewsAPI.org | — | — | Not implemented | Deliberately excluded — its free tier has historically forbidden production/deployed use. See PLAN.md §2. |
@@ -49,6 +49,31 @@ correct (sane titles, places, and coordinates came back). GDELT hasn't
 changed this layout in years, but if a future run ever produces obviously
 wrong lat/lng or place names, that column mapping is the first place to
 check.
+
+## PIB note — official feed unreliable, using a third-party mirror
+
+`pib.gov.in`'s own RSS system (`RssMain.aspx`) was tested live across every
+`Lang`/`Regid` parameter combination documented anywhere findable — it
+either returned Hindi content regardless of the language parameter, or timed
+out entirely. Rather than ship a source that silently serves the wrong
+language, `src/lib/sources/registry.ts` uses
+`gkgangavarapu.github.io/pibindia-rss/feed.xml`, a community project that
+scrapes PIB Delhi's English releases daily and republishes them as clean RSS.
+Each item still links back to the real `pib.gov.in` press-release page, not
+the mirror — only the feed mechanics are third-party. Being an unofficial,
+volunteer-maintained mirror, it carries more staleness risk than the other
+sources here; if it ever stops updating, that's the first thing to check,
+and PIB's own RSS system is worth re-testing periodically in case it's fixed.
+
+## Encoding bug found and fixed (PIB)
+
+The first live ingestion run produced garbled/mojibake text for PIB items
+(a classic UTF-8-decoded-as-Latin-1 double-encoding signature). Root cause:
+`rss-parser`'s own `parseURL()` HTTP layer mis-detected the feed's charset.
+Fixed in `src/lib/sources/adapters/rss.ts` by fetching each feed manually
+(`fetch().text()`, which follows the WHATWG Encoding spec correctly) and
+handing the already-correctly-decoded text to `parser.parseString()` instead
+— this fixes charset handling for every RSS source, not just PIB.
 
 ## Resilience
 
