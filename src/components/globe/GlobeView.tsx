@@ -6,6 +6,7 @@ import type { GlobeMethods } from "react-globe.gl";
 import { AlertTriangle } from "lucide-react";
 import { CATEGORY_HEX, SEVERITY_WEIGHT, type SitrepEvent } from "@/lib/types";
 import { isWebGLAvailable } from "@/lib/webgl";
+import { createStarfield, type Starfield } from "@/components/globe/starfield";
 import { EmptyState } from "@/components/ui/EmptyState";
 
 // react-globe.gl touches `window`/WebGL at module load time, so it must never
@@ -28,6 +29,8 @@ export function GlobeView({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const globeRef = useRef<GlobeMethods | undefined>(undefined);
+  const starfieldRef = useRef<Starfield | null>(null);
+  const starfieldRafRef = useRef<number | null>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [webglOk, setWebglOk] = useState<boolean | null>(null);
 
@@ -67,10 +70,58 @@ export function GlobeView({
     // Centered roughly on the Indian Ocean so Asia/Africa/Europe are all in
     // view on first load — matches "South Asia / India is my priority".
     globeRef.current?.pointOfView({ lat: 15, lng: 55, altitude: 2.2 }, 0);
+
+    // Injected into the globe's own scene (one WebGL context, no second
+    // renderer) — see starfield.ts for why. Confined entirely to this
+    // component, so no other panel is affected.
+    const scene = globeRef.current?.scene();
+    if (scene && !starfieldRef.current) {
+      const starfield = createStarfield();
+      scene.add(starfield.points);
+      starfieldRef.current = starfield;
+
+      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (!reduceMotion) {
+        const tick = (t: number) => {
+          starfield.setTime(t / 1000);
+          starfieldRafRef.current = requestAnimationFrame(tick);
+        };
+        starfieldRafRef.current = requestAnimationFrame(tick);
+      }
+    }
   };
 
+  useEffect(() => {
+    return () => {
+      if (starfieldRafRef.current !== null) cancelAnimationFrame(starfieldRafRef.current);
+      if (starfieldRef.current) {
+        // globeRef.current is set asynchronously by react-globe.gl well
+        // after this effect's setup runs (the globe loads in the
+        // background) — there's nothing meaningful to capture at mount
+        // time, so reading the live ref value here at cleanup is correct,
+        // not stale.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        globeRef.current?.scene()?.remove(starfieldRef.current.points);
+        starfieldRef.current.dispose();
+        starfieldRef.current = null;
+      }
+    };
+  }, []);
+
   return (
-    <div ref={containerRef} className="relative h-full w-full overflow-hidden">
+    <div ref={containerRef} className="relative h-full w-full overflow-hidden bg-canvas">
+      {/* Nebula wash — pure CSS, no WebGL/render cost, sits behind the
+          globe's own transparent-background canvas. Confined to this
+          panel only. */}
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(ellipse 60% 50% at 30% 20%, color-mix(in oklch, #7c3aed 18%, transparent), transparent 70%)," +
+            "radial-gradient(ellipse 55% 45% at 75% 80%, color-mix(in oklch, #0ea5e9 16%, transparent), transparent 70%)",
+        }}
+        aria-hidden
+      />
       {webglOk === false ? (
         <EmptyState
           icon={AlertTriangle}
