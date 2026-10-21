@@ -65,9 +65,9 @@ Only headlines/summaries/metadata/links are stored — never full article text.
 | Scheduler | **GitHub Actions `schedule:` workflows** (public repo) | Unlimited free minutes on a public repo vs. ~2000 min/month on private. Runs ingestion/Telegram/agents/cleanup every 15–30 min. Free-tier scheduling isn't exact-to-the-minute — acceptable at this cadence. |
 | Database | **Neon free tier, Postgres + pgvector** | `@neondatabase/serverless` HTTP driver fits Vercel's serverless/edge functions well; autosuspend only adds a brief cold start (vs. Supabase's full pause after inactivity) — moot anyway since ingestion runs every 15–30 min. |
 | LLM (agents + Stalin) | **Groq free tier**, provider swappable via env var (Anthropic Claude etc. supported) | Exact current free-tier models/limits **must** be confirmed at console.groq.com/docs right before Phase 5, since Groq's lineup changes. Model name lives in an env var for one-line swaps. |
-| Embeddings (7-day similarity search) | **Local model via `transformers.js`** (e.g. all-MiniLM-L6-v2), run inside the GitHub Action | Zero cost, no external API/key, no rate limit — runs on the Action runner's CPU during ingestion. 384-dim vectors stored in Neon's pgvector column. |
+| Embeddings (2-day similarity search) | **Local model via `transformers.js`** (e.g. all-MiniLM-L6-v2), run inside the GitHub Action | Zero cost, no external API/key, no rate limit — runs on the Action runner's CPU during ingestion. 384-dim vectors stored in Neon's pgvector column. |
 
-**Cost target ₹0** — every piece above has a free tier sufficient for this app's scale (headlines only, 7-day rolling window, infrequent batched LLM calls).
+**Cost target ₹0** — every piece above has a free tier sufficient for this app's scale (headlines only, 2-day rolling window, infrequent batched LLM calls).
 
 ---
 
@@ -80,7 +80,7 @@ flowchart TB
         TG["Telegram worker job\n(GramJS, persistent client)"]
         EMB["Normalize, dedupe,\nlocal embeddings (transformers.js)"]
         AGENTS["Continent agent jobs\n(cluster, situation reports,\nNEWS FLASH flags)"]
-        CLEAN["7-day retention cleanup"]
+        CLEAN["2-day retention cleanup"]
     end
 
     DB[("Neon Postgres\n+ pgvector")]
@@ -105,7 +105,7 @@ every source adapter, normalizes them into one shape, drops duplicates, computes
 a small local embedding per new item, and writes everything to Neon. Separately,
 each continent agent job reads its region's new items, clusters related stories,
 writes a short situation report, and flags high-severity items as NEWS FLASH. A
-cleanup step purges items older than 7 days. Vercel never ingests anything — it
+cleanup step purges items older than 2 days. Vercel never ingests anything — it
 only reads from Neon to serve the UI and API routes (dashboard, Stalin chat, MCP
 endpoint), which is why cron/serverless limits on Vercel don't matter.
 
@@ -151,7 +151,7 @@ chat_messages(id, role, content, context_item_id, created_at)   -- Stalin histor
 ```
 
 **Design note:** `bookmarks` stores a **snapshot** of the item, not only a
-foreign key — so the 7-day cleanup job purging `items`/`embeddings` never
+foreign key — so the 2-day cleanup job purging `items`/`embeddings` never
 destroys your saved UPSC notes. `situation_reports` (digest archive) and
 `bookmarks` persist indefinitely unless you delete them yourself.
 

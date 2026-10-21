@@ -3,6 +3,8 @@ import { desc, gte } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { items, type ItemRow } from "@/lib/db/schema";
 import { MOCK_EVENTS } from "@/lib/mock/events";
+import { RETENTION_MS } from "@/lib/retention";
+import type { SourceType } from "@/lib/sources/types";
 import type { EventCategory, Severity, SitrepEvent } from "@/lib/types";
 
 // `export const dynamic = "force-dynamic"` is disallowed alongside
@@ -12,20 +14,20 @@ import type { EventCategory, Severity, SitrepEvent } from "@/lib/types";
 // prerendering and would otherwise let Next statically freeze the
 // mock-data fallback as this route's permanent response. See
 // node_modules/next/dist/docs/.../functions/connection.md.
-const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
-const MAX_EVENTS = 2000;
+// ~2,800 items per 2-day window at the current source mix; headroom above that.
+const MAX_EVENTS = 4000;
 
 export async function GET() {
   await connection();
   try {
     const db = getDb();
-    const cutoff = new Date(Date.now() - SEVEN_DAYS_MS);
+    const cutoff = new Date(Date.now() - RETENTION_MS);
     const rows = await db
       .select()
       .from(items)
       .where(gte(items.publishedAt, cutoff))
       .orderBy(desc(items.publishedAt))
-      // Newest first. 500 was hiding most of the week once 25+ sources were
+      // Newest first. 500 was hiding most of the window once 25+ sources were
       // ingesting (~1,200 items per run at first). The feed paginates on the
       // client, so this caps payload size, not what's rendered.
       .limit(MAX_EVENTS);
@@ -63,6 +65,7 @@ function rowToEvent(row: ItemRow): SitrepEvent {
     title: row.title,
     summary: row.summary,
     source: row.source,
+    sourceType: row.sourceType as SourceType,
     url: row.url,
     publishedAt: row.publishedAt.toISOString(),
     category: row.category as EventCategory,

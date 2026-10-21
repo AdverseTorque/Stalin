@@ -25,9 +25,9 @@ export const STALIN_ACTIONS: { id: StalinAction; label: string; needsEvent: bool
   },
   {
     id: "compare",
-    label: "Compare with last week",
+    label: "Compare with earlier reports",
     needsEvent: true,
-    prompt: "How has this story developed over the past week? What changed between the earlier and the latest reports?",
+    prompt: "How has this story developed over the last couple of days? What changed between the earlier and the latest reports?",
   },
   {
     id: "upsc_notes",

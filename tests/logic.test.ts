@@ -64,6 +64,7 @@ describe("findRelatedEvents", () => {
     title: id,
     summary: "",
     source: "test",
+    sourceType: "rss",
     url: `https://example.com/${id}`,
     publishedAt: "2026-10-20T00:00:00Z",
     category,

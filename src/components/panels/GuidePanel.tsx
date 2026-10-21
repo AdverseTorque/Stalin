@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { RETENTION_DAYS } from "@/lib/retention";
 import { CATEGORY_HEX, CATEGORY_LABEL, type EventCategory } from "@/lib/types";
 
 // "How to use SITREP" — opened from the ? button in the top bar, and shown
@@ -35,7 +36,7 @@ export function GuidePanel() {
     <div className="space-y-6 p-4 md:p-6">
       <p className="text-sm leading-relaxed text-ink">
         SITREP collects news from about 30 outlets, the GDELT world-events database and (optionally)
-        Telegram channels, every 20 minutes, and keeps the last 7 days. It stores headlines and short
+        Telegram channels, every 20 minutes, and keeps the last {RETENTION_DAYS} days. It stores headlines and short
         summaries only — always open the original article before relying on a story.
       </p>
 
@@ -63,7 +64,8 @@ export function GuidePanel() {
         <Steps
           items={[
             <>{b("Feed")} lists the newest stories first; type in its search box to find a topic. Tap “Show more” at the bottom for older ones.</>,
-            <>{b("Timeline")} (switch at the top of the Feed) groups the last 7 days by day — useful for revision.</>,
+            <>Switch between {b("News")} (newspapers, wires, GDELT) and {b("Telegram")} (posts from the Telegram channels) at the top of the Feed. The number beside each is how many items it holds; the Timeline follows the same switch.</>,
+            <>{b("Timeline")} (switch at the top of the Feed) groups the last {RETENTION_DAYS} days by day — useful for revision.</>,
           ]}
         />
       </Section>
@@ -72,7 +74,7 @@ export function GuidePanel() {
         <Steps
           items={[
             <>On a phone, tap {b("Filters")} in the top bar; on a computer they’re in the left panel.</>,
-            <>{b("Category")}: tap to hide or show a story type. {b("Time window")}: last hour to 7 days. {b("Minimum severity")}: e.g. “High+” hides routine stories.</>,
+            <>{b("Category")}: tap to hide or show a story type. {b("Time window")}: last hour to {RETENTION_DAYS} days. {b("Minimum severity")}: e.g. “High+” hides routine stories.</>,
             <>Filters apply to the map, Feed and Timeline together.</>,
           ]}
         />
@@ -82,7 +84,7 @@ export function GuidePanel() {
         <Steps
           items={[
             <>Shows the summary, severity, time, source and a link to the {b("original article")}.</>,
-            <>Tap the country name to filter to that country. “Related context” lists similar stories from the last 7 days.</>,
+            <>Tap the country name to filter to that country. “Related context” lists similar stories from the last {RETENTION_DAYS} days.</>,
             <>The {b("Ask Stalin")} buttons explain the story, give background, or turn it into UPSC notes / a Mains answer frame.</>,
           ]}
         />
@@ -98,8 +100,8 @@ export function GuidePanel() {
       <Section title="Stalin (the assistant)">
         <Steps
           items={[
-            <>Ask anything about current affairs, e.g. “What happened between India and China this week?”.</>,
-            <>Answers use only the last 7 days of stored stories and cite them as [1], [2]… — tap a source to open it.</>,
+            <>Ask anything about current affairs, e.g. “What happened between India and China today?”.</>,
+            <>Answers use only the last {RETENTION_DAYS} days of stored stories and cite them as [1], [2]… — tap a source to open it.</>,
             <>It’s an AI: it can be wrong or miss context. Check the cited sources before using an answer in notes or an exam.</>,
           ]}
         />

@@ -57,7 +57,7 @@ export const items = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    // Both the 7-day feed query and the retention cleanup filter/sort on this.
+    // Both the feed query and the retention cleanup filter/sort on this.
     index("items_published_at_idx").on(table.publishedAt),
     // Each continent agent's run queries "recent items in my region".
     index("items_agent_region_idx").on(table.agentRegion),
@@ -65,7 +65,7 @@ export const items = pgTable(
 );
 
 // One row per agent run per region — accumulates as a history (unlike
-// `items`, these are NOT subject to the 7-day retention purge; see
+// `items`, these are NOT subject to the retention purge; see
 // PLAN.md's bookmarks/situation_reports design note).
 export const situationReports = pgTable(
   "situation_reports",

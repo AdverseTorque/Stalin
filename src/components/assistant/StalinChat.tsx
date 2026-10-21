@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Bot, Link2, Send, Square, Trash2, X } from "lucide-react";
+import { RETENTION_DAYS } from "@/lib/retention";
 import type { SitrepEvent } from "@/lib/types";
 import { STALIN_ACTIONS, type StalinAction } from "@/lib/stalin/actions";
 import type { StalinChatState, StalinMessage } from "@/lib/stalin/useStalinChat";
@@ -129,7 +130,7 @@ export function StalinChat({
         {messages.length === 0 && (
           <div className="space-y-2">
             <p className="text-sm text-ink-muted">
-              Sharp, sourced answers from this dashboard&apos;s own 7-day feed and the regional situation
+              Sharp, sourced answers from this dashboard&apos;s own {RETENTION_DAYS}-day feed and the regional situation
               reports — every claim cited, and a plain &quot;not in today&apos;s data&quot; when it isn&apos;t.
             </p>
             <p className="text-xs text-ink-faint">

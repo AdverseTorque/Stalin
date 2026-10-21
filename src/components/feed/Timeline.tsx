@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { RETENTION_DAYS } from "@/lib/retention";
 import type { SitrepEvent } from "@/lib/types";
 import { EventCard } from "@/components/feed/EventCard";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -27,10 +28,10 @@ function startOfDay(ms: number): number {
 }
 
 /**
- * Groups events by calendar day across the full 7-day retention window —
- * independent of the quick time-window filter (1h/24h/3d/7d), which only
- * governs the live Feed list/globe. Still respects category/severity/
- * country filters, so "show me this week's shape of X" works.
+ * Groups events by calendar day across the full retention window —
+ * independent of the quick time-window filter (1h/24h/2d), which only
+ * governs the live Feed list/map. Still respects category/severity/
+ * country filters, so "show me the shape of X" works.
  */
 export function Timeline({
   events,
@@ -64,7 +65,7 @@ export function Timeline({
     return (
       <EmptyState
         icon={History}
-        title="No items in the last 7 days"
+        title={`No items in the last ${RETENTION_DAYS} days`}
         description="Try enabling more categories or clearing the country filter."
       />
     );

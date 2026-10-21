@@ -13,6 +13,7 @@ export const MOCK_EVENTS: SitrepEvent[] = [
     summary:
       "Demonstrators gathered for a third consecutive day outside the national assembly, demanding a reversal of the retirement-age increase.",
     source: "Reuters (mock)",
+    sourceType: "rss",
     url: "#",
     publishedAt: hoursAgo(2),
     category: "unrest",
@@ -29,6 +30,7 @@ export const MOCK_EVENTS: SitrepEvent[] = [
     summary:
       "Negotiators withdrew from the latest round of talks after artillery exchanges were reported along the contested frontier overnight.",
     source: "AP (mock)",
+    sourceType: "rss",
     url: "#",
     publishedAt: hoursAgo(5),
     category: "conflict",
@@ -45,6 +47,7 @@ export const MOCK_EVENTS: SitrepEvent[] = [
     summary:
       "Policymakers kept the benchmark rate unchanged for a second straight meeting, citing persistent core-inflation pressure.",
     source: "Bloomberg (mock)",
+    sourceType: "rss",
     url: "#",
     publishedAt: hoursAgo(7),
     category: "economics",
@@ -61,6 +64,7 @@ export const MOCK_EVENTS: SitrepEvent[] = [
     summary:
       "Leaders from six nations convened to discuss a proposed trade and transit corridor linking the region's two largest ports.",
     source: "Al Jazeera (mock)",
+    sourceType: "rss",
     url: "#",
     publishedAt: hoursAgo(10),
     category: "geopolitics",
@@ -77,6 +81,7 @@ export const MOCK_EVENTS: SitrepEvent[] = [
     summary:
       "The lower house passed the contested bill after a 14-hour session, with the opposition staging a walkout before the final vote.",
     source: "PIB (mock)",
+    sourceType: "rss",
     url: "#",
     publishedAt: hoursAgo(1),
     category: "india",
@@ -93,6 +98,7 @@ export const MOCK_EVENTS: SitrepEvent[] = [
     summary:
       "A five-judge bench concluded hearings on the Centre-state dispute and reserved judgement, with a ruling expected within weeks.",
     source: "The Hindu (mock)",
+    sourceType: "rss",
     url: "#",
     publishedAt: hoursAgo(14),
     category: "india",
@@ -109,6 +115,7 @@ export const MOCK_EVENTS: SitrepEvent[] = [
     summary:
       "Protesters marched on the capital demanding the president's resignation following a corruption scandal involving senior officials.",
     source: "BBC (mock)",
+    sourceType: "rss",
     url: "#",
     publishedAt: hoursAgo(3),
     category: "unrest",
@@ -125,6 +132,7 @@ export const MOCK_EVENTS: SitrepEvent[] = [
     summary:
       "A roadside explosive device struck a military convoy in the northern province, in the deadliest attack in the region this month.",
     source: "Reuters (mock)",
+    sourceType: "rss",
     url: "#",
     publishedAt: hoursAgo(6),
     category: "conflict",
@@ -141,6 +149,7 @@ export const MOCK_EVENTS: SitrepEvent[] = [
     summary:
       "Crude benchmarks rose over 3% after producers signalled a possible extension of output cuts at next month's meeting.",
     source: "GNews (mock)",
+    sourceType: "rss",
     url: "#",
     publishedAt: hoursAgo(9),
     category: "economics",
@@ -157,6 +166,7 @@ export const MOCK_EVENTS: SitrepEvent[] = [
     summary:
       "The military council unveiled a three-year transition roadmap, drawing criticism from regional bloc observers over its timeline.",
     source: "Al Jazeera (mock)",
+    sourceType: "rss",
     url: "#",
     publishedAt: hoursAgo(16),
     category: "geopolitics",
@@ -173,6 +183,7 @@ export const MOCK_EVENTS: SitrepEvent[] = [
     summary:
       "The Election Commission announced a multi-phase voting schedule, with results expected in early December.",
     source: "PIB (mock)",
+    sourceType: "rss",
     url: "#",
     publishedAt: hoursAgo(20),
     category: "india",
@@ -189,6 +200,7 @@ export const MOCK_EVENTS: SitrepEvent[] = [
     summary:
       "Dockworkers halted operations at the country's busiest container port, demanding guarantees against job losses from new automation.",
     source: "Reuters (mock)",
+    sourceType: "rss",
     url: "#",
     publishedAt: hoursAgo(12),
     category: "unrest",
@@ -205,6 +217,7 @@ export const MOCK_EVENTS: SitrepEvent[] = [
     summary:
       "The national currency hit a fresh record low against the dollar as investors pulled funds ahead of a widely expected rate decision.",
     source: "NewsData.io (mock)",
+    sourceType: "rss",
     url: "#",
     publishedAt: hoursAgo(4),
     category: "economics",
@@ -221,6 +234,7 @@ export const MOCK_EVENTS: SitrepEvent[] = [
     summary:
       "The two countries signed a long-delayed defence cooperation agreement covering joint exercises and technology sharing.",
     source: "MEA (mock)",
+    sourceType: "rss",
     url: "#",
     publishedAt: hoursAgo(18),
     category: "india",

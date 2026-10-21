@@ -5,6 +5,7 @@ import { and, desc, eq, gte, ilike, or } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { items, situationReports, type ItemRow, type SituationReportRow } from "@/lib/db/schema";
 import type { AgentRegion } from "@/lib/agents/regions";
+import { RETENTION_DAYS, RETENTION_MS } from "@/lib/retention";
 import type { EventCategory, Severity } from "@/lib/types";
 
 export async function getRecentItemsForRegion(region: AgentRegion, hours = 24): Promise<ItemRow[]> {
@@ -50,7 +51,7 @@ export async function searchEvents(params: SearchEventsParams): Promise<ItemRow[
 }
 
 /**
- * Any-keyword match over title/summary in the 7-day window, ranked by how
+ * Any-keyword match over title/summary in the retention window, ranked by how
  * many distinct keywords each item hits (then recency). For free-text
  * questions — searchEvents' single `query` string would never match a
  * whole natural-language question.
@@ -58,7 +59,7 @@ export async function searchEvents(params: SearchEventsParams): Promise<ItemRow[
 export async function searchByKeywords(keywords: string[], limit = 10): Promise<ItemRow[]> {
   if (keywords.length === 0) return [];
   const db = getDb();
-  const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const cutoff = new Date(Date.now() - RETENTION_MS);
   const rows = await db
     .select()
     .from(items)
@@ -82,7 +83,7 @@ export async function searchByKeywords(keywords: string[], limit = 10): Promise<
     .map((x) => x.row);
 }
 
-export async function getCountryTimeline(country: string, days = 7): Promise<ItemRow[]> {
+export async function getCountryTimeline(country: string, days = RETENTION_DAYS): Promise<ItemRow[]> {
   const db = getDb();
   const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
   return db

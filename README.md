@@ -2,7 +2,7 @@
 
 An intelligence-agency-style command-center dashboard that aggregates global
 news, conflict/protest data, geopolitics and Indian national politics onto an
-interactive 3D globe — with AI regional "situation report" agents, a 7-day
+interactive 3D globe — with AI regional "situation report" agents, a 2-day
 rolling archive with similar-context search, a UPSC-focused mode, and a
 floating AI assistant named **Stalin**.
 
@@ -15,7 +15,7 @@ Phases 1–6 complete: live deploy, responsive UI shell, lightweight flat
 world map (static SVG, official Indian boundaries), real data ingestion (GDELT +
 Guardian/GNews/NewsData.io + RSS), functional filters/timeline/
 similar-context, 8 regional AI agents + an MCP endpoint, and the Stalin
-assistant (streaming, retrieval over the 7-day database, cited answers).
+assistant (streaming, retrieval over the 2-day database, cited answers).
 Phase 8 (Telegram ingestion, installable PWA, test suite + CI) is done;
 Phase 7 (UPSC mode) is deferred. See
 [PLAN.md](./PLAN.md) for the full architecture, data sources, database
@@ -28,7 +28,7 @@ project brief.
 (e.g. Claude Desktop) over the streamable-HTTP transport — tools:
 `search_events`, `get_region_summary`, `get_country_timeline`,
 `get_item_by_id`. No API key needed to query it; it only reads the public
-7-day event data this dashboard already shows.
+2-day event data this dashboard already shows.
 
 ## Stack
 

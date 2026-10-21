@@ -2,6 +2,8 @@
 // §6 — kept intentionally small in Phase 2 since we're working with mock
 // data; the real ingestion pipeline (Phase 3) will produce values in this
 // exact shape.
+import { RETENTION_MS } from "@/lib/retention";
+import type { SourceType } from "@/lib/sources/types";
 
 export type EventCategory =
   | "unrest"
@@ -17,6 +19,8 @@ export interface SitrepEvent {
   title: string;
   summary: string;
   source: string;
+  /** Where it was ingested from — the Feed panel splits "telegram" from the rest. */
+  sourceType: SourceType;
   url: string;
   publishedAt: string; // ISO timestamp
   category: EventCategory;
@@ -79,20 +83,19 @@ export const SEVERITY_ORDER: Record<Severity, number> = {
   critical: 3,
 };
 
-export type TimeWindow = "1h" | "24h" | "3d" | "7d";
+// "2d" is the widest window — it equals the retention period (lib/retention.ts).
+export type TimeWindow = "1h" | "24h" | "2d";
 
 export const TIME_WINDOW_MS: Record<TimeWindow, number> = {
   "1h": 60 * 60 * 1000,
   "24h": 24 * 60 * 60 * 1000,
-  "3d": 3 * 24 * 60 * 60 * 1000,
-  "7d": 7 * 24 * 60 * 60 * 1000,
+  "2d": RETENTION_MS,
 };
 
 export const TIME_WINDOW_LABEL: Record<TimeWindow, string> = {
   "1h": "1h",
   "24h": "24h",
-  "3d": "3d",
-  "7d": "7d",
+  "2d": "2d",
 };
 
 export type NavTab = "map" | "feed" | "agents" | "upsc" | "stalin";

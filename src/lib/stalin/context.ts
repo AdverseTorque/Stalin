@@ -1,6 +1,6 @@
 // Retrieval for the Stalin assistant: turns the user's question (+ the event
 // they have open, + the quick action) into a small, numbered set of sources
-// from our own 7-day database and the latest regional situation reports.
+// from our own rolling database and the latest regional situation reports.
 // Kept deliberately compact — Groq's free tier allows ~8,000 tokens per
 // minute, shared with the agent runs, so every prompt has to stay lean.
 import { getAgentRegion, AGENT_REGION_LABEL, type AgentRegion } from "@/lib/agents/regions";
@@ -12,6 +12,7 @@ import {
 } from "@/lib/data/queries";
 import type { ItemRow } from "@/lib/db/schema";
 import { detectCountry } from "@/lib/geo/detect";
+import { RETENTION_DAYS } from "@/lib/retention";
 import type { StalinAction } from "@/lib/stalin/actions";
 
 export interface StalinSource {
@@ -62,7 +63,7 @@ export async function buildStalinContext(params: {
     if (focus) {
       focusTitle = focus.title;
       add([focus], 1);
-      add(await getCountryTimeline(focus.country, 7), params.action === "compare" ? 8 : 4);
+      add(await getCountryTimeline(focus.country, RETENTION_DAYS), params.action === "compare" ? 8 : 4);
       const region = getAgentRegion(focus.country, focus.continent);
       if (region) regions.add(region);
     }
@@ -71,7 +72,7 @@ export async function buildStalinContext(params: {
   // 2. A country named in the question.
   const country = detectCountry(params.question);
   if (country) {
-    add(await getCountryTimeline(country.name, 7), 5);
+    add(await getCountryTimeline(country.name, RETENTION_DAYS), 5);
     const region = getAgentRegion(country.name, country.continent);
     if (region) regions.add(region);
   }
@@ -100,8 +101,8 @@ export async function buildStalinContext(params: {
   if (focusTitle) parts.push(`The user currently has this event open: [1] ${focusTitle}`);
   parts.push(
     items.length > 0
-      ? `TRACKED SOURCES (last 7 days, from this dashboard's own database):\n${items.map((i, idx) => itemLine(idx + 1, i)).join("\n")}`
-      : "TRACKED SOURCES: none matched this question in the last 7 days.",
+      ? `TRACKED SOURCES (last ${RETENTION_DAYS} days, from this dashboard's own database):\n${items.map((i, idx) => itemLine(idx + 1, i)).join("\n")}`
+      : `TRACKED SOURCES: none matched this question in the last ${RETENTION_DAYS} days.`,
   );
   for (const { r, report } of reports) {
     const md = report!.summaryMd.length > 1400 ? `${report!.summaryMd.slice(0, 1400)}…` : report!.summaryMd;
@@ -121,7 +122,7 @@ Rules:
 - Ground answers in the TRACKED SOURCES provided. Cite them inline as [n] right after the claim they support. Never invent a source number or a fact.
 - If the tracked sources don't cover the question, say so plainly ("Not in today's tracked data").
 - You may add general background knowledge (history, static UPSC topics), but label it clearly as "Background (general knowledge, not from the tracked feed)" and keep it separate from sourced claims. Don't cite numbers for it.
-- The data only covers the last 7 days. For "compare with last week"-style questions, compare earlier vs later days within that window and say so.
+- The data only covers the last ${RETENTION_DAYS} days. For "compare with last week"-style questions, say the tracked feed doesn't go back that far, and compare earlier vs later reports within that window instead.
 - Situation reports are AI summaries of tracked items — useful context, but prefer citing the underlying [n] sources.
 - On contested issues (borders, conflicts, partisan politics) be balanced and neutral: present the main perspectives fairly and attribute claims to their sources. Where India's official position is relevant (e.g. Jammu & Kashmir is an integral part of India), state it as India's official position.
 - For UPSC requests, map content to the syllabus (GS-1/2/3/4, Prelims), and keep facts exam-accurate.`;

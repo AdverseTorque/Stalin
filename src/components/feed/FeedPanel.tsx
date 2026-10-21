@@ -1,7 +1,8 @@
 "use client";
 
 import { memo, useMemo, useState } from "react";
-import { History, Radio, Rss, Search } from "lucide-react";
+import { History, Newspaper, Radio, Rss, Search, Send } from "lucide-react";
+import { RETENTION_DAYS } from "@/lib/retention";
 import type { SitrepEvent } from "@/lib/types";
 import { EventCard } from "@/components/feed/EventCard";
 import { Timeline } from "@/components/feed/Timeline";
@@ -11,7 +12,17 @@ import { FeedCardSkeleton } from "@/components/ui/Skeleton";
 import { cn } from "@/lib/cn";
 
 type ViewMode = "feed" | "timeline";
+// "news" = every non-Telegram source (RSS, GDELT, news APIs) — the feed as it
+// always was; "telegram" = the Telegram channels, kept apart because they are
+// high-volume, often non-English, and usually have no map position.
+type Channel = "news" | "telegram";
 const PAGE_SIZE = 100;
+
+function splitByChannel(list: SitrepEvent[]): Record<Channel, SitrepEvent[]> {
+  const out: Record<Channel, SitrepEvent[]> = { news: [], telegram: [] };
+  for (const e of list) out[e.sourceType === "telegram" ? "telegram" : "news"].push(e);
+  return out;
+}
 
 function FeedPanelImpl({
   events,
@@ -23,9 +34,9 @@ function FeedPanelImpl({
   error = null,
   onRetry,
 }: {
-  /** Already restricted to the active time-window filter (1h/24h/3d/7d). */
+  /** Already restricted to the active time-window filter (1h/24h/2d). */
   events: SitrepEvent[];
-  /** Category/severity/country-filtered, but spans the full 7-day window regardless of the time-window filter — for the Timeline view. */
+  /** Category/severity/country-filtered, but spans the full retention window regardless of the time-window filter — for the Timeline view. */
   timelineEvents: SitrepEvent[];
   now: number | null;
   selectedEventId: string | null;
@@ -39,20 +50,28 @@ function FeedPanelImpl({
   // Rendering ~2,000 cards at once made the UI sluggish; show a page at a time.
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
+  const [channel, setChannel] = useState<Channel>("news");
+
+  const feedByChannel = useMemo(() => splitByChannel(events), [events]);
+  const timelineByChannel = useMemo(() => splitByChannel(timelineEvents), [timelineEvents]);
+  const counts = view === "feed" ? feedByChannel : timelineByChannel;
+  const channelTimeline = timelineByChannel[channel];
+
   const sorted = useMemo(() => {
     const q = query.trim().toLowerCase();
+    const channelEvents = feedByChannel[channel];
     const filtered = q
-      ? events.filter(
+      ? channelEvents.filter(
           (e) =>
             e.title.toLowerCase().includes(q) ||
             e.country.toLowerCase().includes(q) ||
             e.source.toLowerCase().includes(q),
         )
-      : events;
+      : channelEvents;
     return [...filtered].sort(
       (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime(),
     );
-  }, [events, query]);
+  }, [feedByChannel, channel, query]);
 
   return (
     <div className="flex h-full flex-col">
@@ -62,11 +81,39 @@ function FeedPanelImpl({
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-online opacity-60" />
             <span className="relative inline-flex size-1.5 rounded-full bg-online" />
           </span>
-          {view === "feed" ? "Live Feed" : "7-Day Timeline"}
+          {view === "feed" ? "Live Feed" : `${RETENTION_DAYS}-Day Timeline`}
         </h2>
         <span className="font-mono text-[10px] text-ink-faint">
-          {view === "feed" ? sorted.length : timelineEvents.length} items
+          {view === "feed" ? sorted.length : channelTimeline.length} items
         </span>
+      </div>
+
+      <div className="flex items-center gap-1 border-b border-border p-1.5" role="tablist" aria-label="Feed source">
+        {(
+          [
+            { id: "news", label: "News", Icon: Newspaper },
+            { id: "telegram", label: "Telegram", Icon: Send },
+          ] as const
+        ).map(({ id, label, Icon }) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={channel === id}
+            onClick={() => {
+              setChannel(id);
+              setVisibleCount(PAGE_SIZE); // other tab starts from its top page
+            }}
+            className={cn(
+              "flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 font-mono text-[10px] tracking-wide uppercase transition-colors",
+              channel === id ? "bg-accent/15 text-accent" : "text-ink-faint hover:text-ink",
+            )}
+          >
+            <Icon className="size-3" aria-hidden />
+            {label}
+            <span className="text-ink-faint">{counts[id].length}</span>
+          </button>
+        ))}
       </div>
 
       <div className="flex items-center gap-1 border-b border-border p-1.5">
@@ -115,7 +162,7 @@ function FeedPanelImpl({
           </div>
         ) : view === "timeline" ? (
           now === null ? null : (
-            <Timeline events={timelineEvents} now={now} selectedEventId={selectedEventId} onSelect={onSelect} />
+            <Timeline events={channelTimeline} now={now} selectedEventId={selectedEventId} onSelect={onSelect} />
           )
         ) : sorted.length === 0 ? (
           <EmptyState
@@ -124,7 +171,9 @@ function FeedPanelImpl({
             description={
               query
                 ? "Try a different search term, or clear it."
-                : "Try enabling more categories in the filter panel."
+                : channel === "telegram"
+                  ? "No Telegram posts in this time window — try a wider one, or enable more categories."
+                  : "Try enabling more categories in the filter panel."
             }
           />
         ) : (

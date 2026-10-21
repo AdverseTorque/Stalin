@@ -43,7 +43,7 @@ export function AppShell() {
   const [activeCategories, setActiveCategories] = useState<Set<EventCategory>>(
     () => new Set(ALL_CATEGORIES),
   );
-  const [timeWindow, setTimeWindow] = useState<TimeWindow>("7d");
+  const [timeWindow, setTimeWindow] = useState<TimeWindow>("2d");
   const [minSeverity, setMinSeverity] = useState<Severity>("low");
   const [countryFilter, setCountryFilter] = useState<string | null>(null);
   const [stalinOpen, setStalinOpen] = useState(false);
@@ -81,13 +81,13 @@ export function AppShell() {
   const minSeverityRank = SEVERITY_ORDER_LIST.indexOf(minSeverity);
   const filtersActive =
     activeCategories.size < ALL_CATEGORIES.length ||
-    timeWindow !== "7d" ||
+    timeWindow !== "2d" ||
     minSeverity !== "low" ||
     countryFilter !== null;
 
   // Shared by both filtered sets below — category/severity/country are
   // "always on" filters; only the time window differs between the live
-  // feed/map and the Timeline view (which always spans the full 7 days).
+  // feed/map and the Timeline view (which always spans the full retention window).
   const passesBaseFilters = (e: (typeof events)[number]) =>
     activeCategories.has(e.category) &&
     SEVERITY_ORDER_LIST.indexOf(e.severity) >= minSeverityRank &&

@@ -2,10 +2,19 @@ name: Ingest
 
 on:
   schedule:
-    # Every 20 minutes. GitHub's free scheduler isn't exact-to-the-minute
-    # (can lag during peak load) — fine at this cadence. See PLAN.md §3.
-    - cron: "*/20 * * * *"
+    # Every 20 minutes, at off-peak minutes. GitHub delays or drops scheduled
+    # runs most at round marks (:00, :20, :40 ...), which left multi-hour
+    # gaps in the feed; odd minutes are far less congested. It still isn't
+    # exact-to-the-minute — for guaranteed cadence, trigger workflow_dispatch
+    # from an external cron service. See PLAN.md §3.
+    - cron: "7,27,47 * * * *"
   workflow_dispatch: {} # lets you trigger a run manually from the Actions tab
+
+# One ingest at a time — a late run overlapping the next would insert the
+# same items twice and fight over the retention purge.
+concurrency:
+  group: ingest
+  cancel-in-progress: false
 
 jobs:
   ingest:

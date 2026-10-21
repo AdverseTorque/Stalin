@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Bot, ExternalLink, MapPin, Tag, X } from "lucide-react";
+import { RETENTION_DAYS } from "@/lib/retention";
 import type { SitrepEvent } from "@/lib/types";
 import { SEVERITY_LABEL } from "@/lib/types";
 import { STALIN_ACTIONS, type StalinAction } from "@/lib/stalin/actions";
@@ -94,11 +95,11 @@ function Content({
 
         <div>
           <p className="mb-2 font-mono text-[10px] tracking-wide text-ink-faint uppercase">
-            Related context (last 7 days)
+            Related context (last {RETENTION_DAYS} days)
           </p>
           {related.length === 0 ? (
             <p className="rounded-lg border border-dashed border-border p-3 font-mono text-[10px] text-ink-faint">
-              No related items found in the current 7-day window yet.
+              No related items found in the current {RETENTION_DAYS}-day window yet.
             </p>
           ) : (
             <div className="space-y-1.5">

@@ -7,12 +7,13 @@ import {
   getLatestSituationReport,
   searchEvents,
 } from "@/lib/data/queries";
+import { RETENTION_DAYS } from "@/lib/retention";
 import { CATEGORY_LABEL, type EventCategory } from "@/lib/types";
 import type { ItemRow } from "@/lib/db/schema";
 import type { AgentRegion } from "@/lib/agents/regions";
 
 // MCP endpoint — lets an external MCP client (Claude Desktop, or any other
-// MCP-compatible app) query this dashboard's own 7-day event data and
+// MCP-compatible app) query this dashboard's own rolling event data and
 // region situation reports directly, without scraping the website. Stateless
 // by default (mcp-handler), which fits Vercel's serverless functions —
 // no session/Redis config needed for simple read-only tools like these.
@@ -42,14 +43,14 @@ const handler = createMcpHandler((server) => {
     {
       title: "Search Events",
       description:
-        "Search the dashboard's 7-day rolling event database by free-text query and/or filters (category, region, country, severity, recency). Returns headline-level data only, never full article text.",
+        `Search the dashboard's ${RETENTION_DAYS}-day rolling event database by free-text query and/or filters (category, region, country, severity, recency). Returns headline-level data only, never full article text.`,
       inputSchema: z.object({
         query: z.string().optional().describe("Free-text match against title/summary"),
         category: z.enum(CATEGORY_VALUES).optional(),
         region: z.enum(REGION_VALUES).optional().describe(`One of: ${AGENT_REGIONS.join(", ")}`),
         country: z.string().optional(),
         severity: z.enum(SEVERITY_VALUES).optional(),
-        hours: z.number().int().positive().max(168).optional().describe("Only items from the last N hours (max 168 = 7 days)"),
+        hours: z.number().int().positive().max(RETENTION_DAYS * 24).optional().describe(`Only items from the last N hours (max ${RETENTION_DAYS * 24} = ${RETENTION_DAYS} days)`),
         limit: z.number().int().positive().max(100).optional(),
       }),
     },
@@ -114,14 +115,14 @@ const handler = createMcpHandler((server) => {
     "get_country_timeline",
     {
       title: "Get Country Timeline",
-      description: "Returns a chronological timeline of tracked events for one country over the last N days (default 7, the full retention window).",
+      description: `Returns a chronological timeline of tracked events for one country over the last N days (default ${RETENTION_DAYS}, the full retention window).`,
       inputSchema: z.object({
         country: z.string(),
-        days: z.number().int().positive().max(7).optional(),
+        days: z.number().int().positive().max(RETENTION_DAYS).optional(),
       }),
     },
     async ({ country, days }) => {
-      const results = await getCountryTimeline(country, days ?? 7);
+      const results = await getCountryTimeline(country, days ?? RETENTION_DAYS);
       return {
         content: [
           {
